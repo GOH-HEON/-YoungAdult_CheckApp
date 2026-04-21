@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f4f6;
+  --foreground: #111111;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-noto-sans-kr);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
+  margin: 0;
+  font-family: var(--font-sans), sans-serif;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Black & White 톤: 기존 레이아웃은 유지하고 유채색만 무채색으로 보정 */
+[class*="bg-blue-"],
+[class*="bg-emerald-"],
+[class*="bg-rose-"],
+[class*="bg-amber-"],
+[class*="bg-teal-"],
+[class*="bg-orange-"] {
+  background-color: #e5e7eb !important;
+}
+
+[class*="text-blue-"],
+[class*="text-emerald-"],
+[class*="text-rose-"],
+[class*="text-amber-"],
+[class*="text-teal-"],
+[class*="text-orange-"] {
+  color: #111111 !important;
+}
+
+[class*="border-blue-"],
+[class*="border-emerald-"],
+[class*="border-rose-"],
+[class*="border-amber-"],
+[class*="border-teal-"],
+[class*="border-orange-"] {
+  border-color: #a3a3a3 !important;
+}
+
+[class*="hover:bg-blue-"]:hover,
+[class*="hover:bg-emerald-"]:hover,
+[class*="hover:bg-rose-"]:hover,
+[class*="hover:bg-amber-"]:hover,
+[class*="hover:bg-teal-"]:hover,
+[class*="hover:bg-orange-"]:hover {
+  background-color: #d4d4d8 !important;
+}
+
+/* date 입력 달력 아이콘 화이트톤 */
+input[type="date"] {
+  background-color: #111111 !important;
+  color: #ffffff !important;
+  border-color: #525252 !important;
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2);
+  opacity: 0.95;
 }
