@@ -1,6 +1,6 @@
 import { PageTitle } from "@/components/ui/page-title";
 import { updateMemberAction } from "@/app/(admin)/members/actions";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
 
 export default async function EditMemberPage({
   params,
@@ -8,7 +8,7 @@ export default async function EditMemberPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
 
   const [{ data: member, error: memberError }, { data: departments, error: departmentError }] =
     await Promise.all([

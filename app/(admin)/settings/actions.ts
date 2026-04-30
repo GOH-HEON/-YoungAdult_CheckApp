@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
 import { cleanText, toBoolean, toInteger } from "@/lib/utils/format";
 
 function redirectWithMessage(message: string, level: "ok" | "error" = "ok"): never {
@@ -16,7 +16,7 @@ export async function createDepartmentAction(formData: FormData) {
     redirectWithMessage("소속부서 이름을 입력해 주세요.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { error } = await supabase.from("departments").insert({
     name,
     is_active: true,
@@ -39,7 +39,7 @@ export async function updateDepartmentAction(formData: FormData) {
     redirectWithMessage("소속부서 수정 값이 올바르지 않습니다.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { error } = await supabase
     .from("departments")
     .update({
@@ -63,7 +63,7 @@ export async function createMeetingTypeAction(formData: FormData) {
     redirectWithMessage("모임 종류 이름을 입력해 주세요.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { error } = await supabase.from("meeting_types").insert({
     name,
     is_active: true,
@@ -86,7 +86,7 @@ export async function updateMeetingTypeAction(formData: FormData) {
     redirectWithMessage("모임 종류 수정 값이 올바르지 않습니다.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { error } = await supabase
     .from("meeting_types")
     .update({

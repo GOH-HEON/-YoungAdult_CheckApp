@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { PageTitle } from "@/components/ui/page-title";
-import { requireSession } from "@/lib/auth/session";
+import { canWrite, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
+import { normalizeDateRange } from "@/lib/utils/date-range";
 import { formatDateInputValue } from "@/lib/utils/format";
 
 type AttendanceViewPageProps = {
@@ -67,7 +68,8 @@ function statusClass(status: string | null) {
 
 export default async function AttendanceViewPage({ searchParams }: AttendanceViewPageProps) {
   const params = await searchParams;
-  const { supabase } = await requireSession();
+  const { supabase, appUser } = await requireSession();
+  const canManage = canWrite(appUser);
 
   const [{ data: meetingTypes }, { data: departments }] = await Promise.all([
     supabase
@@ -85,8 +87,12 @@ export default async function AttendanceViewPage({ searchParams }: AttendanceVie
     params.meetingTypeId ?? preferredMeetingTypeId ?? meetingTypes?.[0]?.id ?? 0,
   );
   const selectedDepartmentId = Number.parseInt(params.departmentId ?? "", 10);
-  const fromDate = params.from ?? subtractDays(28);
-  const toDate = params.to ?? formatDateInputValue();
+  const { from: fromDate, to: toDate } = normalizeDateRange({
+    fromCandidate: params.from,
+    toCandidate: params.to,
+    defaultFrom: subtractDays(28),
+    defaultTo: formatDateInputValue(),
+  });
 
   let meetings: MeetingRow[] = [];
   let members: MemberRow[] = [];
@@ -192,6 +198,7 @@ export default async function AttendanceViewPage({ searchParams }: AttendanceVie
             name="from"
             type="date"
             defaultValue={fromDate}
+            max={toDate}
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
           />
         </label>
@@ -202,6 +209,7 @@ export default async function AttendanceViewPage({ searchParams }: AttendanceVie
             name="to"
             type="date"
             defaultValue={toDate}
+            min={fromDate}
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
           />
         </label>
@@ -245,12 +253,14 @@ export default async function AttendanceViewPage({ searchParams }: AttendanceVie
                   <th key={meeting.id} className="px-3 py-2 whitespace-nowrap">
                     <div className="flex flex-col gap-1">
                       <span>{meeting.meeting_date}</span>
-                      <Link
-                        href={`/attendance/check?meetingTypeId=${selectedMeetingTypeId}&meetingDate=${meeting.meeting_date}`}
-                        className="text-xs font-medium text-blue-700 underline"
-                      >
-                        수정/삭제
-                      </Link>
+                      {canManage ? (
+                        <Link
+                          href={`/attendance/check?meetingTypeId=${selectedMeetingTypeId}&meetingDate=${meeting.meeting_date}`}
+                          className="text-xs font-medium text-blue-700 underline"
+                        >
+                          수정/삭제
+                        </Link>
+                      ) : null}
                     </div>
                   </th>
                 ))}

@@ -1,7 +1,10 @@
+import Link from "next/link";
+
 import { PageTitle } from "@/components/ui/page-title";
 import { AttendanceReportCharts } from "@/components/reports/attendance-report-charts";
 import { requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
+import { normalizeDateRange } from "@/lib/utils/date-range";
 import {
   buildAbsenceSummary,
   buildDateSeries,
@@ -112,10 +115,18 @@ function finalizeSummary(summary: GroupSummary) {
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
-  const fromDate = params.from ?? subtractDays(60);
-  const toDate = params.to ?? formatDateInputValue();
-  const summaryFromDate = params.summaryFrom ?? fromDate;
-  const summaryToDate = params.summaryTo ?? toDate;
+  const { from: fromDate, to: toDate } = normalizeDateRange({
+    fromCandidate: params.from,
+    toCandidate: params.to,
+    defaultFrom: subtractDays(60),
+    defaultTo: formatDateInputValue(),
+  });
+  const { from: summaryFromDate, to: summaryToDate } = normalizeDateRange({
+    fromCandidate: params.summaryFrom,
+    toCandidate: params.summaryTo,
+    defaultFrom: fromDate,
+    defaultTo: toDate,
+  });
   const selectedSummaryDepartmentId = Number.parseInt(params.summaryDepartmentId ?? "", 10);
   const selectedMeetingTypeId = Number(params.meetingTypeId ?? 0);
   const recentN = Number.parseInt(params.recentN ?? "6", 10) || 6;
@@ -339,10 +350,18 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   return (
     <div className="space-y-6">
-      <PageTitle
-        title="통계/리포트"
-        description="날짜별 출석률, 모임별 출석률, 결석 누적자를 시각화합니다."
-      />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <PageTitle
+          title="통계/리포트"
+          description="날짜별 출석률, 모임별 출석률, 결석 누적자를 시각화합니다."
+        />
+        <Link
+          href="/reports/score"
+          className="inline-flex items-center justify-center rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+        >
+          출석 점수판 보기
+        </Link>
+      </div>
 
       <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-5">
         <input type="hidden" name="summaryFrom" value={summaryFromDate} />
@@ -350,11 +369,23 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <input type="hidden" name="summaryDepartmentId" value={!Number.isNaN(selectedSummaryDepartmentId) ? String(selectedSummaryDepartmentId) : ""} />
         <label className="space-y-1 text-sm">
           <span className="font-medium text-slate-700">시작일</span>
-          <input name="from" type="date" defaultValue={fromDate} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <input
+            name="from"
+            type="date"
+            defaultValue={fromDate}
+            max={toDate}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          />
         </label>
         <label className="space-y-1 text-sm">
           <span className="font-medium text-slate-700">종료일</span>
-          <input name="to" type="date" defaultValue={toDate} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <input
+            name="to"
+            type="date"
+            defaultValue={toDate}
+            min={fromDate}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          />
         </label>
         <label className="space-y-1 text-sm">
           <span className="font-medium text-slate-700">모임 종류</span>
@@ -404,6 +435,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               name="summaryFrom"
               type="date"
               defaultValue={summaryFromDate}
+              max={summaryToDate}
               className="w-full rounded-lg border border-slate-300 px-3 py-2"
             />
           </label>
@@ -413,6 +445,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               name="summaryTo"
               type="date"
               defaultValue={summaryToDate}
+              min={summaryFromDate}
               className="w-full rounded-lg border border-slate-300 px-3 py-2"
             />
           </label>

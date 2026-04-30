@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
+import { AttendanceSaveError, saveAttendanceRecords } from "@/lib/attendance/save";
+import { parseAttendanceWorkbook } from "@/lib/attendance/workbook";
 
 function redirectCheckWithContext({
   message,
@@ -42,7 +44,7 @@ export async function deleteAttendanceByDateAction(formData: FormData) {
     });
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
 
   if (!meetingTypeId && meetingTypeName) {
     const { data: meetingType } = await supabase
@@ -116,4 +118,61 @@ export async function deleteAttendanceByDateAction(formData: FormData) {
     meetingTypeId,
     meetingTypeName,
   });
+}
+
+export async function importAttendanceWorkbookAction(formData: FormData) {
+  const fallbackMeetingDate = String(formData.get("meetingDate") ?? "").trim();
+  const fallbackMeetingTypeName = String(formData.get("meetingTypeName") ?? "").trim();
+  const fallbackMeetingTypeIdValue = Number.parseInt(String(formData.get("meetingTypeId") ?? ""), 10);
+  const fallbackMeetingTypeId = Number.isNaN(fallbackMeetingTypeIdValue) ? 0 : fallbackMeetingTypeIdValue;
+  const workbook = formData.get("workbook");
+
+  if (!(workbook instanceof File) || workbook.size === 0) {
+    redirectCheckWithContext({
+      message: "업로드할 엑셀 파일을 선택해 주세요.",
+      level: "error",
+      meetingDate: fallbackMeetingDate,
+      meetingTypeId: fallbackMeetingTypeId,
+      meetingTypeName: fallbackMeetingTypeName,
+    });
+  }
+
+  const { supabase, user } = await requireAdminSession();
+
+  try {
+    const parsed = parseAttendanceWorkbook(await workbook.arrayBuffer());
+    const result = await saveAttendanceRecords({
+      supabase,
+      userId: user.id,
+      input: {
+        meetingTypeId: parsed.meta.meetingTypeId,
+        meetingTypeName: parsed.meta.meetingTypeName,
+        meetingDate: parsed.meta.meetingDate,
+        rows: parsed.rows,
+        clearMissingRows: true,
+      },
+    });
+
+    revalidatePath("/attendance/check");
+    revalidatePath("/attendance/view");
+    revalidatePath("/attendance/print");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    revalidatePath("/reports/score");
+
+    redirectCheckWithContext({
+      message: `엑셀 Import 완료: ${result.savedCount}명 저장, 미기록 ${result.missingMemberIds.length}명`,
+      meetingDate: result.meetingId ? parsed.meta.meetingDate : fallbackMeetingDate,
+      meetingTypeId: result.meetingTypeId,
+      meetingTypeName: result.meetingTypeName,
+    });
+  } catch (error) {
+    redirectCheckWithContext({
+      message: error instanceof AttendanceSaveError || error instanceof Error ? error.message : "엑셀 Import 중 오류가 발생했습니다.",
+      level: "error",
+      meetingDate: fallbackMeetingDate,
+      meetingTypeId: fallbackMeetingTypeId,
+      meetingTypeName: fallbackMeetingTypeName,
+    });
+  }
 }

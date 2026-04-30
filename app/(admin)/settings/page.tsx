@@ -1,5 +1,5 @@
 import { PageTitle } from "@/components/ui/page-title";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
 import {
   createDepartmentAction,
   createMeetingTypeAction,
@@ -28,7 +28,7 @@ type MeetingTypeRow = {
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const params = await searchParams;
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
 
   const [{ data: departments, error: departmentError }, { data: meetingTypes, error: meetingTypeError }] =
     await Promise.all([

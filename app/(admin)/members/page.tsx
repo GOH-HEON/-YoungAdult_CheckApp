@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageTitle } from "@/components/ui/page-title";
 import { deleteMemberAction, toggleMemberActiveAction } from "@/app/(admin)/members/actions";
-import { requireSession } from "@/lib/auth/session";
+import { canWrite, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { formatDate, maskPhone } from "@/lib/utils/format";
 
@@ -42,7 +42,8 @@ function compareGenderOrder(a: "형제" | "자매", b: "형제" | "자매") {
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
   const params = await searchParams;
-  const { supabase } = await requireSession();
+  const { supabase, appUser } = await requireSession();
+  const canManage = canWrite(appUser);
 
   const q = params.q?.trim() ?? "";
   const gender = params.gender === "형제" || params.gender === "자매" ? params.gender : "";
@@ -168,12 +169,14 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           >
             초기화
           </Link>
-          <Link
-            href="/members/new"
-            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white"
-          >
-            새 명단 등록
-          </Link>
+          {canManage ? (
+            <Link
+              href="/members/new"
+              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white"
+            >
+              새 명단 등록
+            </Link>
+          ) : null}
         </div>
       </form>
 
@@ -199,7 +202,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
               <th className="px-3 py-2">연락처</th>
               <th className="px-3 py-2">소속부서</th>
               <th className="px-3 py-2">상태</th>
-              <th className="px-3 py-2">관리</th>
+              {canManage ? <th className="px-3 py-2">관리</th> : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
@@ -223,35 +226,37 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
                     {member.is_active ? "활성" : "비활성"}
                   </span>
                 </td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href={`/members/${member.id}/edit`}
-                      className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700"
-                    >
-                      수정
-                    </Link>
-                    <form action={toggleMemberActiveAction}>
-                      <input type="hidden" name="id" value={member.id} />
-                      <input type="hidden" name="is_active" value={String(member.is_active)} />
-                      <button
-                        type="submit"
+                {canManage ? (
+                  <td className="px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/members/${member.id}/edit`}
                         className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700"
                       >
-                        {member.is_active ? "비활성" : "활성"}
-                      </button>
-                    </form>
-                    <form action={deleteMemberAction}>
-                      <input type="hidden" name="id" value={member.id} />
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700"
-                      >
-                        삭제
-                      </button>
-                    </form>
-                  </div>
-                </td>
+                        수정
+                      </Link>
+                      <form action={toggleMemberActiveAction}>
+                        <input type="hidden" name="id" value={member.id} />
+                        <input type="hidden" name="is_active" value={String(member.is_active)} />
+                        <button
+                          type="submit"
+                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                        >
+                          {member.is_active ? "비활성" : "활성"}
+                        </button>
+                      </form>
+                      <form action={deleteMemberAction}>
+                        <input type="hidden" name="id" value={member.id} />
+                        <button
+                          type="submit"
+                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                        >
+                          삭제
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

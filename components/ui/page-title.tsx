@@ -7,8 +7,8 @@ export function PageTitle({
 }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
-      <p className="text-sm text-slate-600">{description}</p>
+      <h2 className="text-[2.5rem] font-bold tracking-tight text-slate-950">{title}</h2>
+      <p className="max-w-3xl text-lg leading-7 text-slate-500">{description}</p>
     </section>
   );
 }

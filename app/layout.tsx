@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
-import { Noto_Sans_KR } from "next/font/google";
+import { Manrope, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 const notoSansKr = Noto_Sans_KR({
   subsets: ["latin"],
@@ -22,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={notoSansKr.variable}>
+    <html lang="ko" className={`${manrope.variable} ${notoSansKr.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
       </body>

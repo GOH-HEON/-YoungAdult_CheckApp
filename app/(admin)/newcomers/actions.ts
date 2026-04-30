@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { GENDER_OPTIONS } from "@/lib/constants/domain";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
 import { cleanText, toInteger } from "@/lib/utils/format";
 
 function redirectNewcomers(message: string, level: "ok" | "error" = "ok"): never {
@@ -33,7 +33,7 @@ export async function createNewcomerAction(formData: FormData) {
     redirectNewcomers("필수 입력값(이름, 성별, 생년, 소속부서)을 확인해 주세요.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
 
   const { data: member, error: memberError } = await supabase
     .from("members")

@@ -1,6 +1,6 @@
 import { PageTitle } from "@/components/ui/page-title";
 import { createNewcomerAction } from "@/app/(admin)/newcomers/actions";
-import { requireSession } from "@/lib/auth/session";
+import { canWrite, requireSession } from "@/lib/auth/session";
 import { formatDate, maskPhone } from "@/lib/utils/format";
 
 type NewcomersPageProps = {
@@ -35,7 +35,8 @@ type NewcomerRow = {
 
 export default async function NewcomersPage({ searchParams }: NewcomersPageProps) {
   const params = await searchParams;
-  const { supabase } = await requireSession();
+  const { supabase, appUser } = await requireSession();
+  const canManage = canWrite(appUser);
 
   const [{ data: departments, error: departmentError }, { data: newcomers, error: newcomersError }] =
     await Promise.all([
@@ -69,69 +70,75 @@ export default async function NewcomersPage({ searchParams }: NewcomersPageProps
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <h3 className="text-lg font-semibold text-slate-900">새가족 등록</h3>
-        {departmentError ? (
-          <p className="mt-2 text-sm text-rose-600">소속부서 조회 오류: {departmentError.message}</p>
-        ) : null}
-        <form action={createNewcomerAction} className="mt-3 grid gap-3 md:grid-cols-2">
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-slate-700">이름</span>
-            <input name="name" required className="w-full rounded-lg border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-slate-700">성별</span>
-            <select name="gender" required className="w-full rounded-lg border border-slate-300 px-3 py-2">
-              <option value="형제">형제</option>
-              <option value="자매">자매</option>
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-slate-700">생년</span>
-            <input
-              name="birth_year"
-              type="number"
-              min={1950}
-              max={2100}
-              required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-slate-700">구원일</span>
-            <input name="salvation_date" type="date" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-slate-700">연락처</span>
-            <input
-              name="phone"
-              placeholder="010-1234-5678"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium text-slate-700">소속부서</span>
-            <select name="department_id" required className="w-full rounded-lg border border-slate-300 px-3 py-2">
-              {((departments as DepartmentRow[] | null) ?? []).map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-slate-700">인도자</span>
-            <input name="inviter_name" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-slate-700">특이사항</span>
-            <textarea name="notes" rows={3} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
-          </label>
-          <button type="submit" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white md:col-span-2">
-            새가족 등록
-          </button>
-        </form>
-      </section>
+      {canManage ? (
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="text-lg font-semibold text-slate-900">새가족 등록</h3>
+          {departmentError ? (
+            <p className="mt-2 text-sm text-rose-600">소속부서 조회 오류: {departmentError.message}</p>
+          ) : null}
+          <form action={createNewcomerAction} className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-slate-700">이름</span>
+              <input name="name" required className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-slate-700">성별</span>
+              <select name="gender" required className="w-full rounded-lg border border-slate-300 px-3 py-2">
+                <option value="형제">형제</option>
+                <option value="자매">자매</option>
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-slate-700">생년</span>
+              <input
+                name="birth_year"
+                type="number"
+                min={1950}
+                max={2100}
+                required
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-slate-700">구원일</span>
+              <input name="salvation_date" type="date" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-slate-700">연락처</span>
+              <input
+                name="phone"
+                placeholder="010-1234-5678"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-slate-700">소속부서</span>
+              <select name="department_id" required className="w-full rounded-lg border border-slate-300 px-3 py-2">
+                {((departments as DepartmentRow[] | null) ?? []).map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm md:col-span-2">
+              <span className="font-medium text-slate-700">인도자</span>
+              <input name="inviter_name" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </label>
+            <label className="space-y-1 text-sm md:col-span-2">
+              <span className="font-medium text-slate-700">특이사항</span>
+              <textarea name="notes" rows={3} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            </label>
+            <button type="submit" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white md:col-span-2">
+              새가족 등록
+            </button>
+          </form>
+        </section>
+      ) : (
+        <section className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          읽기 전용 계정은 새가족 등록/수정 기능을 사용할 수 없습니다.
+        </section>
+      )}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <h3 className="text-lg font-semibold text-slate-900">최근 등록 새가족</h3>

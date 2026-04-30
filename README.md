@@ -18,6 +18,7 @@
 - 형제/자매 명단 CRUD + 검색/필터
 - 새가족 등록(`members` + `newcomer_profiles` 연동)
 - 출석 체크(모임 생성/조회 + upsert 저장)
+- 출석 명단 Excel Export / Import
 - 출석 조회 전용 화면
 - 운영 대시보드 요약 카드
 - 리포트 차트(날짜별/모임별 + 추세선) 및 결석 누적자
@@ -96,6 +97,20 @@ proxy.ts
 - `/reports`
 - `/settings`
 
+## 출석 Excel Export / Import
+
+`/attendance/check` 화면에서 선택한 `모임 종류 + 날짜` 기준으로 출석 명단을 `.xlsx`로 내려받을 수 있습니다.
+
+- `명단 Export(.xlsx)`: 현재 활성 명단 + 기존 출석 상태를 엑셀로 다운로드
+- `엑셀 Import`: 같은 템플릿 파일을 다시 업로드하여 해당 날짜 출석을 갱신
+
+Import 규칙:
+
+- `상태`는 `정상출석`, `지각`, `결석`, `행사` 중 하나만 사용
+- `비고`는 자유 입력 가능
+- `상태`를 비우면 해당 날짜의 기존 출석 기록도 비워짐
+- 이름이 아니라 템플릿 내부 `member_id` 기준으로 매칭하므로 동명이인 충돌을 피할 수 있음
+
 ## 로컬 실행 방법
 
 ```bash
@@ -104,6 +119,55 @@ npm run dev
 ```
 
 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
+
+## 청년회 주소록 PDF 업데이트 스크립트
+
+로컬에서만 PDF 전체를 읽고 `청년회` 페이지를 자동 탐지해서 `members.phone`, `members.salvation_date`를 업데이트하는 스크립트입니다.
+
+주의:
+
+- 기본값은 `dry-run` 입니다. 실제 반영은 `--apply` 를 붙였을 때만 수행됩니다.
+- `구원일`은 `YY.MM.DD` 형식만 반영합니다.
+- 이름이 DB에 없으면 `PASS` 합니다.
+- 이름 완전일치가 없을 때는 기본적으로 `공백만 제거한 유일 매칭`까지 허용합니다.
+- 공백 정규화도 막고 싶으면 `--strict-exact-name` 옵션을 사용하세요.
+
+의존성 설치:
+
+```bash
+python3 -m pip install --user pdfplumber
+```
+
+dry-run:
+
+```bash
+python3 scripts/update-youth-members-from-pdf.py \
+  --pdf "./2025년 익산교회 주소록.pdf"
+```
+
+리포트 파일까지 저장:
+
+```bash
+python3 scripts/update-youth-members-from-pdf.py \
+  --pdf "./2025년 익산교회 주소록.pdf" \
+  --report "./tmp/pdfs/youth-update-report.json"
+```
+
+실제 반영:
+
+```bash
+python3 scripts/update-youth-members-from-pdf.py \
+  --pdf "./2025년 익산교회 주소록.pdf" \
+  --apply
+```
+
+완전일치만 허용:
+
+```bash
+python3 scripts/update-youth-members-from-pdf.py \
+  --pdf "./2025년 익산교회 주소록.pdf" \
+  --strict-exact-name
+```
 
 ## 환경변수
 
@@ -144,6 +208,19 @@ from auth.users
 where email = 'admin@example.com'
 on conflict (id) do nothing;
 ```
+
+### 임원 조회 전용 권한 적용(운영 순서)
+
+배포 전/배포 직후 Supabase SQL Editor에서 아래 순서로 실행:
+
+1. `supabase/ops/01_enable_readonly_roles.sql`
+2. `supabase/ops/02_assign_viewer_accounts.sql`
+3. `supabase/ops/03_security_smoke_checks.sql`
+
+핵심 원칙:
+
+- `admin`: 조회/등록/수정/삭제 가능
+- `viewer`, `staff`: 조회만 가능
 
 ## DB 구조
 

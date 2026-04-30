@@ -1,6 +1,6 @@
 import { PageTitle } from "@/components/ui/page-title";
 import { createMemberAction } from "@/app/(admin)/members/actions";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
 
 type DepartmentRow = {
   id: number;
@@ -8,7 +8,7 @@ type DepartmentRow = {
 };
 
 export default async function NewMemberPage() {
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { data: departments, error } = await supabase
     .from("departments")
     .select("id, name")

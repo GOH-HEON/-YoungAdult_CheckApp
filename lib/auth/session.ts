@@ -6,9 +6,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { hasSupabaseServiceRoleEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type AppUserRow = {
+export type AppRole = "admin" | "viewer" | "staff";
+
+export type AppUserRow = {
   id: string;
-  role: string;
+  role: AppRole;
   is_active: boolean;
   name: string | null;
 };
@@ -18,6 +20,22 @@ export type SessionContext = {
   appUser: AppUserRow | null;
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
 };
+
+function isReadableRole(role: string): role is AppRole {
+  return role === "admin" || role === "viewer" || role === "staff";
+}
+
+export function canWriteByRole(role: string) {
+  return role === "admin";
+}
+
+export function canReadByRole(role: string) {
+  return isReadableRole(role);
+}
+
+export function canWrite(appUser: AppUserRow | null) {
+  return Boolean(appUser && appUser.is_active && canWriteByRole(appUser.role));
+}
 
 async function readAppUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -114,15 +132,25 @@ export async function requireSession(): Promise<SessionContext> {
 
   if (!appUser) {
     await supabase.auth.signOut();
-    redirect("/login?error=관리자 계정 매핑이 필요합니다. 관리자에게 문의해 주세요.");
+    redirect("/login?error=사용자 계정 매핑이 필요합니다. 관리자에게 문의해 주세요.");
   }
 
-  if (!appUser.is_active || appUser.role !== "admin") {
+  if (!appUser.is_active || !canReadByRole(appUser.role)) {
     await supabase.auth.signOut();
     redirect("/login?error=권한이 없는 계정입니다.");
   }
 
   return { user, appUser, supabase };
+}
+
+export async function requireAdminSession(): Promise<SessionContext> {
+  const session = await requireSession();
+
+  if (!canWrite(session.appUser)) {
+    redirect("/dashboard?level=error&message=읽기 전용 계정은 수정할 수 없습니다.");
+  }
+
+  return session;
 }
 
 export async function getRouteHandlerSession() {
@@ -141,7 +169,7 @@ export async function getRouteHandlerSession() {
     return { supabase, user: null, appUser: null };
   }
 
-  if (!appUser.is_active || appUser.role !== "admin") {
+  if (!appUser.is_active || !canReadByRole(appUser.role)) {
     return { supabase, user: null, appUser };
   }
 

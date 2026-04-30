@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageTitle } from "@/components/ui/page-title";
 import { AttendanceCheckForm } from "@/components/attendance/attendance-check-form";
 import { deleteAttendanceByDateAction } from "@/app/(admin)/attendance/actions";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { formatDateInputValue } from "@/lib/utils/format";
 
@@ -43,7 +43,7 @@ function compareGenderOrder(a: "형제" | "자매", b: "형제" | "자매") {
 
 export default async function AttendanceCheckPage({ searchParams }: AttendanceCheckPageProps) {
   const params = await searchParams;
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
 
   const [{ data: meetingTypes }, { data: members }] = await Promise.all([
     supabase.from("meeting_types").select("id, name").eq("is_active", true).order("name"),
@@ -70,6 +70,17 @@ export default async function AttendanceCheckPage({ searchParams }: AttendanceCh
     : selectedMeetingTypeId;
 
   let existingRecords: AttendanceRecordRow[] = [];
+  const exportParams = new URLSearchParams();
+  if (resolvedMeetingTypeId) {
+    exportParams.set("meetingTypeId", String(resolvedMeetingTypeId));
+  }
+  if (selectedMeetingTypeName) {
+    exportParams.set("meetingTypeName", selectedMeetingTypeName);
+  }
+  if (selectedMeetingDate) {
+    exportParams.set("meetingDate", selectedMeetingDate);
+  }
+  const exportHref = `/api/attendance/template?${exportParams.toString()}`;
   const sortedMembers = ((members as MemberRow[] | null) ?? [])
     .map((member) => ({
       id: member.id,
@@ -110,7 +121,7 @@ export default async function AttendanceCheckPage({ searchParams }: AttendanceCh
     <div className="space-y-6">
       <PageTitle
         title="출석 체크"
-        description="모임 종류 + 날짜 기준으로 출석을 빠르게 선택하고 저장합니다. 상태를 바꾼 뒤 저장하면 수정됩니다."
+        description="모임 종류 + 날짜 기준으로 출석을 빠르게 선택하고 저장합니다. 체크한 사람에게는 상태를 화면상으로 일괄 적용할 수 있고, 실제 저장은 별도 버튼으로 진행됩니다."
       />
 
       {params.message ? (
@@ -179,19 +190,33 @@ export default async function AttendanceCheckPage({ searchParams }: AttendanceCh
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <h3 className="text-base font-semibold text-slate-900">출석 데이터 관리</h3>
         <p className="mt-1 text-sm text-slate-600">
-          수정: 아래 상태 변경 후 저장 버튼 클릭 / 삭제: 해당 날짜 전체 출석 삭제
+          수정: 아래 상태 변경 후 저장 버튼 클릭 / Export: 명단 엑셀 다운로드
+          <span className="ml-1">
+            Import 는 아래 출석 상태 영역에서 진행하며, 엑셀 값을 먼저 표에 반영한 뒤 저장합니다.
+          </span>
         </p>
-        <form action={deleteAttendanceByDateAction} className="mt-3 flex flex-wrap items-center gap-2">
-          <input type="hidden" name="meetingTypeId" value={resolvedMeetingTypeId || selectedMeetingTypeId || ""} />
-          <input type="hidden" name="meetingTypeName" value={selectedMeetingTypeName} />
-          <input type="hidden" name="meetingDate" value={selectedMeetingDate} />
-          <button
-            type="submit"
-            className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
-          >
-            {selectedMeetingDate} 전체 출석 삭제
-          </button>
-        </form>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[auto_1fr]">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={exportHref}
+              className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-[#2563eb] hover:bg-blue-50"
+            >
+              명단 Export(.xlsx)
+            </Link>
+
+            <form action={deleteAttendanceByDateAction} className="contents">
+              <input type="hidden" name="meetingTypeId" value={resolvedMeetingTypeId || selectedMeetingTypeId || ""} />
+              <input type="hidden" name="meetingTypeName" value={selectedMeetingTypeName} />
+              <input type="hidden" name="meetingDate" value={selectedMeetingDate} />
+              <button
+                type="submit"
+                className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+              >
+                {selectedMeetingDate} 전체 출석 삭제
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
 
       {(members?.length ?? 0) === 0 ? (
@@ -200,6 +225,7 @@ export default async function AttendanceCheckPage({ searchParams }: AttendanceCh
         </p>
       ) : resolvedMeetingTypeId || selectedMeetingTypeName ? (
         <AttendanceCheckForm
+          key={`${resolvedMeetingTypeId || "direct"}-${selectedMeetingDate}`}
           meetingTypeId={resolvedMeetingTypeId || undefined}
           meetingTypeName={selectedMeetingTypeName || undefined}
           meetingDate={selectedMeetingDate}

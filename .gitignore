@@ -37,6 +37,7 @@ yarn-error.log*
 # local data exports
 member.csv
 member.xlsx
+private-login-accounts.md
 
 # vercel
 .vercel

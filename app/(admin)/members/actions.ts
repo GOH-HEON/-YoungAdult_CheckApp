@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { GENDER_OPTIONS } from "@/lib/constants/domain";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/session";
 import { cleanText, toBoolean, toInteger } from "@/lib/utils/format";
 
 function redirectMembers(message: string, level: "ok" | "error" = "ok"): never {
@@ -72,7 +72,7 @@ export async function createMemberAction(formData: FormData) {
   }
   const payload = parsed.payload;
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { error } = await supabase.from("members").insert({
     ...payload,
     is_newcomer: false,
@@ -99,7 +99,7 @@ export async function updateMemberAction(formData: FormData) {
   }
   const payload = parsed.payload;
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { error } = await supabase
     .from("members")
     .update(payload)
@@ -122,7 +122,7 @@ export async function toggleMemberActiveAction(formData: FormData) {
     redirectMembers("대상 형제/자매를 찾을 수 없습니다.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
   const { error } = await supabase
     .from("members")
     .update({ is_active: !isActive })
@@ -143,7 +143,7 @@ export async function deleteMemberAction(formData: FormData) {
     redirectMembers("삭제 대상 형제/자매를 찾을 수 없습니다.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase } = await requireAdminSession();
 
   const { error: deleteAttendanceError } = await supabase
     .from("attendance_records")
