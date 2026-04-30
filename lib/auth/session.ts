@@ -140,7 +140,10 @@ export async function requireSession(): Promise<SessionContext> {
     redirect("/login?error=권한이 없는 계정입니다.");
   }
 
-  return { user, appUser, supabase };
+  const readSupabase =
+    canWrite(appUser) || !hasSupabaseServiceRoleEnv() ? supabase : createSupabaseAdminClient();
+
+  return { user, appUser, supabase: readSupabase };
 }
 
 export async function requireAdminSession(): Promise<SessionContext> {
