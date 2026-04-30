@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { PageTitle } from "@/components/ui/page-title";
 import { AttendanceReportCharts } from "@/components/reports/attendance-report-charts";
-import { requireSession } from "@/lib/auth/session";
+import { createPageReadClient, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { normalizeDateRange } from "@/lib/utils/date-range";
 import {
@@ -131,7 +131,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const selectedMeetingTypeId = Number(params.meetingTypeId ?? 0);
   const recentN = Number.parseInt(params.recentN ?? "6", 10) || 6;
 
-  const { supabase } = await requireSession();
+  const session = await requireSession();
+  const supabase = createPageReadClient(session.appUser, session.supabase);
 
   const [{ data: meetingTypes }, { count: totalMembersCount }, { data: activeMembers }, { data: departments }] = await Promise.all([
     supabase.from("meeting_types").select("id, name").eq("is_active", true).order("name"),

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageTitle } from "@/components/ui/page-title";
 import { deleteMemberAction, toggleMemberActiveAction } from "@/app/(admin)/members/actions";
-import { canWrite, requireSession } from "@/lib/auth/session";
+import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { formatDate, maskPhone } from "@/lib/utils/format";
 
@@ -42,7 +42,9 @@ function compareGenderOrder(a: "형제" | "자매", b: "형제" | "자매") {
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
   const params = await searchParams;
-  const { supabase, appUser } = await requireSession();
+  const session = await requireSession();
+  const { appUser } = session;
+  const supabase = createPageReadClient(appUser, session.supabase);
   const canManage = canWrite(appUser);
 
   const q = params.q?.trim() ?? "";

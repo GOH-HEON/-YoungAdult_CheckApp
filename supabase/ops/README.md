@@ -16,4 +16,6 @@ This folder contains the internal provisioning flow for the 23 read-only login a
 - The auth seeding script uses the Supabase Auth Admin API, which is the official server-side method for creating users.
 - The SQL step only syncs `auth.users` into `public.users` with `staff` role.
 - The app treats `staff` and `viewer` as read-only roles.
+- Admin accounts must be inserted into `public.users` explicitly by an operator. The app no longer auto-promotes the first login to `admin`.
+- For the strongest security posture, apply `01_enable_readonly_roles.sql` to the production database so read-only users can rely on DB-enforced `select only` access.
 - The internal email list itself stays in `private-login-accounts.md`, which is excluded from git.

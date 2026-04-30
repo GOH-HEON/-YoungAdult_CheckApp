@@ -11,7 +11,7 @@ import {
   type LeadershipNoteCategory,
   type LeadershipVisitStatus,
 } from "@/lib/constants/domain";
-import { canWrite, requireSession } from "@/lib/auth/session";
+import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { formatDate, formatDateInputValue } from "@/lib/utils/format";
 import { PageTitle } from "@/components/ui/page-title";
@@ -153,7 +153,9 @@ function sortVisitPlans(items: LeadershipItemRow[]) {
 export default async function LeadersPage({ searchParams }: LeadersPageProps) {
   const params = await searchParams;
   const selectedDate = normalizeDateParam(params.date);
-  const { supabase, appUser } = await requireSession();
+  const session = await requireSession();
+  const { appUser } = session;
+  const supabase = createPageReadClient(appUser, session.supabase);
   const canManage = canWrite(appUser);
 
   const [

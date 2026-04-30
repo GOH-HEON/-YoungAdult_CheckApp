@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { PageTitle } from "@/components/ui/page-title";
 import { Icon } from "@/components/ui/icon";
-import { canWrite, requireSession } from "@/lib/auth/session";
+import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
 import {
   buildMemberScoreTable,
   buildScoreOverview,
@@ -251,7 +251,9 @@ function ScoreListCard({
 }
 
 export default async function DashboardPage() {
-  const { supabase, appUser } = await requireSession();
+  const session = await requireSession();
+  const { appUser } = session;
+  const supabase = createPageReadClient(appUser, session.supabase);
   const canManage = canWrite(appUser);
 
   const [{ data: activeMembers }, { data: latestMeeting }, { data: recentNewcomers }, { data: recentAbsenceMeetings }, { data: recentScoreMeetings }] =

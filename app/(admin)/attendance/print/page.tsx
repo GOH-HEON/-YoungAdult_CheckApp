@@ -1,6 +1,6 @@
 import { PageTitle } from "@/components/ui/page-title";
 import { PrintTrigger } from "@/components/ui/print-trigger";
-import { requireSession } from "@/lib/auth/session";
+import { createPageReadClient, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { formatDateInputValue } from "@/lib/utils/format";
 
@@ -59,7 +59,8 @@ function toPrintableValue(value: string | null | undefined) {
 
 export default async function AttendancePrintPage({ searchParams }: AttendancePrintPageProps) {
   const params = await searchParams;
-  const { supabase } = await requireSession();
+  const session = await requireSession();
+  const supabase = createPageReadClient(session.appUser, session.supabase);
 
   const [{ data: meetingTypes }, { data: departments }, { data: members }] = await Promise.all([
     supabase.from("meeting_types").select("id, name").eq("is_active", true).order("name"),

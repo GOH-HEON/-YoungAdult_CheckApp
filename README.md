@@ -199,6 +199,12 @@ cp .env.local.example .env.local
 4. 필요 시 `supabase/seed.sql` 실행
 5. 최소 1개 관리자 계정을 `auth.users` + `public.users`에 준비
 
+중요:
+
+- 첫 로그인 사용자가 자동으로 `admin`이 되지 않습니다.
+- 반드시 운영자가 관리자 계정을 먼저 `public.users`에 명시적으로 매핑해야 합니다.
+- 운영 보안을 위해 Supabase Auth의 공개 회원가입은 비활성화하거나 초대 기반으로만 운영하는 것을 권장합니다.
+
 `public.users` 부트스트랩 예시:
 
 ```sql
@@ -221,6 +227,8 @@ on conflict (id) do nothing;
 
 - `admin`: 조회/등록/수정/삭제 가능
 - `viewer`, `staff`: 조회만 가능
+- 운영 DB에 위 SQL이 실제 반영되기 전까지는 읽기 전용 화면 일부가 서버측 제한 조회 경로를 사용할 수 있습니다.
+- 최종 목표는 `viewer/staff = select only` RLS를 운영 DB에 직접 반영하는 것입니다.
 
 ## DB 구조
 

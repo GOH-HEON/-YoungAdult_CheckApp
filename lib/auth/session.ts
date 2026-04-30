@@ -69,38 +69,6 @@ async function readAppUserByAdminClient(userId: string) {
   return (data as AppUserRow | null) ?? null;
 }
 
-async function bootstrapFirstAdminUserIfNeeded(user: User) {
-  if (!hasSupabaseServiceRoleEnv()) {
-    return null;
-  }
-
-  const adminSupabase = createSupabaseAdminClient();
-  const { count } = await adminSupabase
-    .from("users")
-    .select("id", { head: true, count: "exact" });
-
-  if ((count ?? 0) > 0) {
-    return readAppUserByAdminClient(user.id);
-  }
-
-  const { data } = await adminSupabase
-    .from("users")
-    .upsert(
-      {
-        id: user.id,
-        email: user.email ?? "",
-        name: (user.user_metadata?.name as string | undefined) ?? null,
-        role: "admin",
-        is_active: true,
-      },
-      { onConflict: "id" },
-    )
-    .select("id, role, is_active, name")
-    .maybeSingle();
-
-  return (data as AppUserRow | null) ?? null;
-}
-
 async function resolveAppUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   user: User,
@@ -108,11 +76,6 @@ async function resolveAppUser(
   const primary = await readAppUser(supabase, user.id);
   if (primary) {
     return primary;
-  }
-
-  const bootstrapped = await bootstrapFirstAdminUserIfNeeded(user);
-  if (bootstrapped) {
-    return bootstrapped;
   }
 
   return readAppUserByAdminClient(user.id);
@@ -140,10 +103,7 @@ export async function requireSession(): Promise<SessionContext> {
     redirect("/login?error=권한이 없는 계정입니다.");
   }
 
-  const readSupabase =
-    canWrite(appUser) || !hasSupabaseServiceRoleEnv() ? supabase : createSupabaseAdminClient();
-
-  return { user, appUser, supabase: readSupabase };
+  return { user, appUser, supabase };
 }
 
 export async function requireAdminSession(): Promise<SessionContext> {
@@ -177,4 +137,17 @@ export async function getRouteHandlerSession() {
   }
 
   return { supabase, user, appUser };
+}
+
+export function createPageReadClient(
+  appUser: AppUserRow | null,
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+) {
+  if (canWrite(appUser) || !hasSupabaseServiceRoleEnv()) {
+    return supabase;
+  }
+
+  // Keep any privileged readonly access explicit at the page level only.
+  // Route handlers and server actions must continue using the session client.
+  return createSupabaseAdminClient();
 }

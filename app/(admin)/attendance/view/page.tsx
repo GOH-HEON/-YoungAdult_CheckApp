@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageTitle } from "@/components/ui/page-title";
-import { canWrite, requireSession } from "@/lib/auth/session";
+import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { normalizeDateRange } from "@/lib/utils/date-range";
 import { formatDateInputValue } from "@/lib/utils/format";
@@ -68,7 +68,9 @@ function statusClass(status: string | null) {
 
 export default async function AttendanceViewPage({ searchParams }: AttendanceViewPageProps) {
   const params = await searchParams;
-  const { supabase, appUser } = await requireSession();
+  const session = await requireSession();
+  const { appUser } = session;
+  const supabase = createPageReadClient(appUser, session.supabase);
   const canManage = canWrite(appUser);
 
   const [{ data: meetingTypes }, { data: departments }] = await Promise.all([

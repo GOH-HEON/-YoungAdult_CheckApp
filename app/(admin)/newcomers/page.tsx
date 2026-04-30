@@ -1,6 +1,6 @@
 import { PageTitle } from "@/components/ui/page-title";
 import { createNewcomerAction } from "@/app/(admin)/newcomers/actions";
-import { canWrite, requireSession } from "@/lib/auth/session";
+import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
 import { formatDate, maskPhone } from "@/lib/utils/format";
 
 type NewcomersPageProps = {
@@ -35,7 +35,9 @@ type NewcomerRow = {
 
 export default async function NewcomersPage({ searchParams }: NewcomersPageProps) {
   const params = await searchParams;
-  const { supabase, appUser } = await requireSession();
+  const session = await requireSession();
+  const { appUser } = session;
+  const supabase = createPageReadClient(appUser, session.supabase);
   const canManage = canWrite(appUser);
 
   const [{ data: departments, error: departmentError }, { data: newcomers, error: newcomersError }] =

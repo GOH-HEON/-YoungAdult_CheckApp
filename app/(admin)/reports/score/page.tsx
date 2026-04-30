@@ -7,7 +7,7 @@ import {
   sortMemberScoreTable,
   type MemberScorePoint,
 } from "@/lib/reports/attendance-stats";
-import { requireSession } from "@/lib/auth/session";
+import { createPageReadClient, requireSession } from "@/lib/auth/session";
 import { compareDepartmentName } from "@/lib/utils/department-order";
 import { normalizeDateRange } from "@/lib/utils/date-range";
 import { formatDateInputValue } from "@/lib/utils/format";
@@ -173,7 +173,8 @@ export default async function ScorePage({ searchParams }: ScorePageProps) {
   const recentN = clampRecentN(params.recentN);
   const sortBy = resolveSortBy(params.sortBy);
 
-  const { supabase } = await requireSession();
+  const session = await requireSession();
+  const supabase = createPageReadClient(session.appUser, session.supabase);
 
   const [{ data: meetingTypes }, { data: departments }, { data: activeMembers }] = await Promise.all([
     supabase.from("meeting_types").select("id, name").eq("is_active", true).order("name"),
