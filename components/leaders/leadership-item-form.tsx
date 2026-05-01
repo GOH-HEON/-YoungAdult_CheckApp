@@ -23,6 +23,7 @@ type LeadershipItemFormProps = {
   category: LeadershipNoteCategory;
   selectedDate: string;
   title: string;
+  submitLabel?: string;
   placeholder: string;
   members: MemberOption[];
   departments: DepartmentOption[];
@@ -41,6 +42,7 @@ export function LeadershipItemForm({
   category,
   selectedDate,
   title,
+  submitLabel,
   placeholder,
   members,
   departments,
@@ -206,7 +208,7 @@ export function LeadershipItemForm({
       ) : null}
 
       <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-        {title} 저장
+        {submitLabel ?? `${title} 추가`}
       </button>
     </form>
   );

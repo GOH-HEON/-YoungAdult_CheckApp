@@ -5,6 +5,7 @@ import {
   updateLeadershipVisitStatusAction,
 } from "@/app/(admin)/leaders/actions";
 import { LeadershipItemForm } from "@/components/leaders/leadership-item-form";
+import { LeadershipSectionTable } from "@/components/leaders/leadership-section-table";
 import {
   LEADERSHIP_VISIT_STATUS_OPTIONS,
   LEADERSHIP_NOTE_CATEGORY_OPTIONS,
@@ -150,6 +151,24 @@ function sortVisitPlans(items: LeadershipItemRow[]) {
   });
 }
 
+function sortChronologically(items: LeadershipItemRow[]) {
+  return [...items].sort((a, b) => {
+    if (a.created_at === b.created_at) {
+      return 0;
+    }
+
+    return a.created_at > b.created_at ? 1 : -1;
+  });
+}
+
+function itemDepartmentName(item: LeadershipItemRow) {
+  return item.department_name ?? item.members?.departments?.name ?? "공통";
+}
+
+function itemMemberName(item: LeadershipItemRow) {
+  return item.member_name ?? item.members?.name ?? "공통";
+}
+
 export default async function LeadersPage({ searchParams }: LeadersPageProps) {
   const params = await searchParams;
   const selectedDate = normalizeDateParam(params.date);
@@ -215,8 +234,9 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
 
   const groupedCurrentItems = LEADERSHIP_NOTE_CATEGORY_OPTIONS.map((category) => ({
     category,
-    items:
+    items: sortChronologically(
       ((currentItems as LeadershipItemRow[] | null) ?? []).filter((item) => item.category === category),
+    ),
   }));
 
   const groupedRecentItems = LEADERSHIP_NOTE_CATEGORY_OPTIONS.map((category) => ({
@@ -242,10 +262,10 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageTitle
         title="임원모임 기록"
-        description="회의 날짜별로 안건을 기록하고, 항목별 누적 히스토리와 심방 진행 상태를 함께 관리합니다."
+        description="회의 날짜별로 안건을 기록하고, 문서 양식처럼 표와 추가 입력 줄을 이어서 관리합니다."
       />
 
       {params.message ? (
@@ -333,124 +353,165 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
         </aside>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        {categoryMeta.map((category) => {
+      <section className="space-y-5">
+        {groupedCurrentItems.map(({ category, items }) => {
+          const meta = categoryMeta.find((entry) => entry.value === category) ?? categoryMeta[0];
+          const isMemberCategory = category === "부서원 근황" || category === "부서원 심방계획";
+          const isVisitPlan = category === "부서원 심방계획";
+          const tableColumns = isMemberCategory
+            ? isVisitPlan
+              ? [
+                  { label: "번호", className: "w-16" },
+                  { label: "부서", className: "w-28" },
+                  { label: "부서원", className: "w-28" },
+                  { label: "내용" },
+                  { label: "상태", className: "w-24" },
+                  { label: "예정일", className: "w-28" },
+                  { label: "관리", className: "w-24" },
+                ]
+              : [
+                  { label: "번호", className: "w-16" },
+                  { label: "부서", className: "w-28" },
+                  { label: "부서원", className: "w-28" },
+                  { label: "내용" },
+                  { label: "작성일", className: "w-28" },
+                  { label: "관리", className: "w-24" },
+                ]
+            : [
+                { label: "번호", className: "w-16" },
+                { label: "내용" },
+                { label: "작성일", className: "w-28" },
+                { label: "관리", className: "w-24" },
+              ];
+
           return (
-            <section
-              key={category.value}
-              className={["rounded-2xl border p-5 shadow-sm", category.accentClassName].join(" ")}
-            >
-              <div className="space-y-1">
-                <h3 className="text-xl font-semibold text-slate-900">{category.title}</h3>
-                <p className="text-sm leading-6 text-slate-600">{category.description}</p>
-              </div>
-
-              <LeadershipItemForm
-                category={category.value}
-                selectedDate={selectedDate}
-                title={category.title}
-                placeholder={category.placeholder}
-                canManage={canManage}
-                departments={sortedDepartments}
-                members={sortedMembers.map((member) => ({
-                  id: member.id,
-                  name: member.name,
-                  departmentName: member.departments?.name ?? null,
-                }))}
-              />
-            </section>
-          );
-        })}
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-semibold text-slate-900">선택한 회의 기록</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              {formatDate(selectedDate)} 회차에 입력된 내용을 안건별로 정리해 둡니다.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          {groupedCurrentItems.map(({ category, items }) => (
-            <section key={category} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h4 className="text-lg font-semibold text-slate-900">{category}</h4>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
-                  {items.length}건
-                </span>
-              </div>
-
-              <div className="mt-3 space-y-3">
-                {items.map((item) => (
-                  <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{memberLabel(item)}</p>
-                        <p className="mt-1 text-sm leading-6 whitespace-pre-wrap text-slate-700">{item.content}</p>
-                      </div>
-                      {canManage ? (
-                        <form action={deleteLeadershipItemAction}>
-                          <input type="hidden" name="id" value={item.id} />
-                          <input type="hidden" name="meetingDate" value={selectedDate} />
-                          <button type="submit" className="text-xs font-semibold text-rose-600 hover:text-rose-700">
-                            삭제
-                          </button>
-                        </form>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                      <span>{formatDate(item.created_at)}</span>
-                      {item.due_date ? <span>예정일 {formatDate(item.due_date)}</span> : null}
-                      {item.status ? (
-                        <span
-                          className={[
-                            "rounded-full border px-2 py-1 font-semibold",
-                            statusClassName(item.status),
-                          ].join(" ")}
-                        >
-                          {item.status}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {canManage && item.category === "부서원 심방계획" ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {LEADERSHIP_VISIT_STATUS_OPTIONS.map((status) => (
-                          <form key={status} action={updateLeadershipVisitStatusAction}>
+            <LeadershipSectionTable
+              key={category}
+              title={meta.title}
+              description={meta.description}
+              accentClassName={meta.accentClassName}
+              columns={tableColumns}
+              items={items}
+              emptyMessage="아직 기록이 없습니다."
+              tableClassName="min-w-full text-sm"
+              renderRow={(item, index) => (
+                <tr key={item.id} className="align-top">
+                  <td className="px-4 py-4 font-semibold text-slate-600">{index + 1}</td>
+                  {isMemberCategory ? (
+                    <>
+                      <td className="px-4 py-4 text-slate-700">{itemDepartmentName(item)}</td>
+                      <td className="px-4 py-4 text-slate-700">{itemMemberName(item)}</td>
+                      <td className="px-4 py-4 whitespace-pre-wrap leading-6 text-slate-700">{item.content}</td>
+                      {isVisitPlan ? (
+                        <>
+                          <td className="px-4 py-4">
+                            {item.status ? (
+                              <span
+                                className={[
+                                  "rounded-full border px-2 py-1 text-xs font-semibold",
+                                  statusClassName(item.status),
+                                ].join(" ")}
+                              >
+                                {item.status}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-slate-600">
+                            {item.due_date ? formatDate(item.due_date) : "-"}
+                          </td>
+                        </>
+                      ) : (
+                        <td className="px-4 py-4 text-slate-600">{formatDate(item.created_at)}</td>
+                      )}
+                      <td className="px-4 py-4">
+                        {canManage ? (
+                          <div className="flex flex-wrap gap-2">
+                            <form action={deleteLeadershipItemAction}>
+                              <input type="hidden" name="id" value={item.id} />
+                              <input type="hidden" name="meetingDate" value={selectedDate} />
+                              <button type="submit" className="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                                삭제
+                              </button>
+                            </form>
+                            {isVisitPlan ? (
+                              LEADERSHIP_VISIT_STATUS_OPTIONS.map((status) => (
+                                <form key={status} action={updateLeadershipVisitStatusAction}>
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <input type="hidden" name="meetingDate" value={selectedDate} />
+                                  <input type="hidden" name="status" value={status} />
+                                  <button
+                                    type="submit"
+                                    className={[
+                                      "rounded-full border px-2.5 py-1 text-[11px] font-semibold transition",
+                                      item.status === status
+                                        ? statusClassName(status)
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                                    ].join(" ")}
+                                  >
+                                    {status}
+                                  </button>
+                                </form>
+                              ))
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-4 py-4 whitespace-pre-wrap leading-6 text-slate-700">{item.content}</td>
+                      <td className="px-4 py-4 text-slate-600">{formatDate(item.created_at)}</td>
+                      <td className="px-4 py-4">
+                        {canManage ? (
+                          <form action={deleteLeadershipItemAction}>
                             <input type="hidden" name="id" value={item.id} />
                             <input type="hidden" name="meetingDate" value={selectedDate} />
-                            <input type="hidden" name="status" value={status} />
-                            <button
-                              type="submit"
-                              className={[
-                                "rounded-full border px-3 py-1 text-xs font-semibold transition",
-                                item.status === status
-                                  ? statusClassName(status)
-                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-                              ].join(" ")}
-                            >
-                              {status}
+                            <button type="submit" className="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                              삭제
                             </button>
                           </form>
-                        ))}
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
-
-                {items.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-                    아직 기록이 없습니다.
-                  </p>
-                ) : null}
-              </div>
-            </section>
-          ))}
-        </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              )}
+              footer={
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold text-slate-700">아래 줄 추가</div>
+                  <LeadershipItemForm
+                    category={category}
+                    selectedDate={selectedDate}
+                    title={meta.title}
+                    submitLabel={
+                      category === "부서원 근황"
+                        ? "근황 추가"
+                        : category === "부서원 심방계획"
+                          ? "심방계획 추가"
+                          : category === "전도인 전달사항"
+                            ? "전달사항 추가"
+                            : "광고 추가"
+                    }
+                    placeholder={meta.placeholder}
+                    canManage={canManage}
+                    departments={sortedDepartments}
+                    members={sortedMembers.map((member) => ({
+                      id: member.id,
+                      name: member.name,
+                      departmentName: member.departments?.name ?? null,
+                    }))}
+                  />
+                </div>
+              }
+            />
+          );
+        })}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -463,7 +524,11 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
               <article key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-900">{memberLabel(item)}</p>
-                  <span className={["rounded-full border px-2 py-1 text-xs font-semibold", statusClassName(item.status)].join(" ")}>
+                  <span
+                    className={["rounded-full border px-2 py-1 text-xs font-semibold", statusClassName(item.status)].join(
+                      " ",
+                    )}
+                  >
                     {item.status}
                   </span>
                 </div>
