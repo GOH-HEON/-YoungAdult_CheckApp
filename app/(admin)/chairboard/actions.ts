@@ -10,13 +10,18 @@ import { cleanText } from "@/lib/utils/format";
 function redirectChairboard({
   message,
   level = "ok",
+  noteId,
 }: {
   message: string;
   level?: "ok" | "error";
+  noteId?: string;
 }): never {
   const params = new URLSearchParams();
   params.set("level", level);
   params.set("message", message);
+  if (noteId) {
+    params.set("noteId", noteId);
+  }
   redirect(`/chairboard?${params.toString()}`);
 }
 
@@ -59,24 +64,34 @@ export async function saveChairboardNoteAction(formData: FormData) {
         message: `메모 저장 실패: ${error.message}`,
       });
     }
-  } else {
-    const { error } = await chairboardSupabase.from("chairboard_notes").insert({
+    revalidatePath("/chairboard");
+    redirectChairboard({
+      message: "회장단 메모가 저장되었습니다.",
+      noteId,
+    });
+  }
+
+  const { data, error } = await chairboardSupabase
+    .from("chairboard_notes")
+    .insert({
       title,
       content_html: contentHtml,
       created_by: user.id,
       updated_by: user.id,
-    });
+    })
+    .select("id")
+    .single();
 
-    if (error) {
-      redirectChairboard({
-        level: "error",
-        message: `메모 생성 실패: ${error.message}`,
-      });
-    }
+  if (error || !data) {
+    redirectChairboard({
+      level: "error",
+      message: `메모 생성 실패: ${error?.message ?? "알 수 없는 오류"}`,
+    });
   }
 
   revalidatePath("/chairboard");
   redirectChairboard({
     message: "회장단 메모가 저장되었습니다.",
+    noteId: data.id,
   });
 }
