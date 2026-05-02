@@ -93,6 +93,7 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
   const updatedAtLabel = isDraft
     ? "새 메모를 시작합니다."
     : formatUpdatedAt(selectedNote?.updated_at);
+  const editorKey = `${selectedNote?.id ?? "draft"}:${selectedNote?.updated_at ?? "new"}:${isDraft ? "draft" : "saved"}`;
 
   return (
     <div className="space-y-6">
@@ -185,12 +186,12 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
           </div>
 
           <ChairboardEditor
-            key={selectedNote?.id ?? (isDraft ? "new-draft" : "empty-draft")}
+            key={editorKey}
             noteId={selectedNote?.id ?? null}
             title={selectedNote?.title ?? "회장단 임원모임 메모"}
             contentHtml={selectedContentHtml}
             updatedAtLabel={updatedAtLabel}
-            initialEditing={isDraft}
+            initialEditing={false}
           />
         </div>
       </div>
