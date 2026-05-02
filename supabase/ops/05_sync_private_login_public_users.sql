@@ -6,7 +6,10 @@ select
   au.id,
   au.email,
   coalesce(au.raw_user_meta_data->>'name', split_part(au.email, '@', 1)),
-  'staff',
+  case
+    when au.email like 'hoejang%' then 'chairboard'
+    else 'staff'
+  end,
   true
 from auth.users au
 where au.email in (
@@ -38,7 +41,7 @@ on conflict (id) do update
 set
   email = excluded.email,
   name = excluded.name,
-  role = 'staff',
+  role = excluded.role,
   is_active = true,
   updated_at = now();
 
