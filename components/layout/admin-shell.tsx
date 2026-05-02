@@ -34,7 +34,7 @@ export function AdminShell({
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900">
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col lg:flex-row">
-        <aside className="border-b border-slate-200 bg-white/95 px-4 py-6 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-[300px] lg:flex-none lg:border-b-0 lg:border-r lg:px-6">
+        <aside className="border-b border-slate-200 bg-white/95 px-4 py-6 backdrop-blur-xl lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[300px] lg:flex-none lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-6">
           <div className="mb-8 flex items-center gap-3 px-2">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-700 text-sm font-bold text-white shadow-[0_10px_25px_-8px_rgba(15,23,42,0.45)]">
               YH
@@ -45,9 +45,11 @@ export function AdminShell({
             </div>
           </div>
 
-          <AdminNav canWrite={canWrite} canAccessChairboard={canAccessChairboard} />
+          <div className="min-h-0 lg:flex-1 lg:overflow-y-auto">
+            <AdminNav canWrite={canWrite} canAccessChairboard={canAccessChairboard} />
+          </div>
 
-          <div className="mt-10 space-y-4">
+          <div className="mt-10 space-y-4 lg:mt-6">
             {canWrite ? (
               <Link
                 href="/attendance/check"
