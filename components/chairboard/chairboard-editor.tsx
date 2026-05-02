@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ComponentProps, MouseEventHandler } from "react";
 
 import { deleteChairboardNoteAction, saveChairboardNoteAction } from "@/app/(admin)/chairboard/actions";
 
@@ -19,32 +20,86 @@ type ChairboardEditorProps = {
   title: string;
   contentHtml: string;
   updatedAtLabel: string;
+  initialEditing?: boolean;
 };
 
 function ToolbarButton({
   label,
   onClick,
+  disabled,
 }: {
   label: string;
-  onClick: () => void;
+  onClick: MouseEventHandler<HTMLButtonElement>;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+      disabled={disabled}
+      className={[
+        "rounded-md border px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-all duration-150",
+        disabled
+          ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+          : "border-slate-300 bg-white hover:bg-slate-100 active:translate-y-[1px] active:scale-[0.97] hover:shadow",
+      ].join(" ")}
     >
       {label}
     </button>
   );
 }
 
-export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }: ChairboardEditorProps) {
+function ActionButton({
+  label,
+  variant = "primary",
+  onClick,
+  disabled,
+  type = "button",
+  formAction,
+}: {
+  label: string;
+  variant?: "primary" | "secondary" | "danger";
+  onClick?: MouseEventHandler<HTMLButtonElement>;
+  disabled?: boolean;
+  type?: "button" | "submit";
+  formAction?: ComponentProps<"button">["formAction"];
+}) {
+  const styles = {
+    primary: "border-slate-900 bg-slate-900 text-white hover:bg-slate-800",
+    secondary: "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+    danger: "border-rose-300 bg-white text-rose-700 hover:bg-rose-50",
+  }[variant];
+
+  return (
+    <button
+      type={type}
+      formAction={formAction}
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        "rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-150",
+        "active:translate-y-[1px] active:scale-[0.98] hover:shadow",
+        disabled ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 shadow-none" : `border ${styles}`,
+      ].join(" ")}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function ChairboardEditor({
+  noteId,
+  title,
+  contentHtml,
+  updatedAtLabel,
+  initialEditing = false,
+}: ChairboardEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const contentInputRef = useRef<HTMLInputElement>(null);
   const [titleValue, setTitleValue] = useState(title);
   const [fontFamily, setFontFamily] = useState<string>(FONT_OPTIONS[0].value);
   const [fontSize, setFontSize] = useState<number>(16);
+  const [isEditing, setIsEditing] = useState(initialEditing);
 
   useEffect(() => {
     if (!editorRef.current) {
@@ -91,8 +146,14 @@ export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }:
           name="title"
           value={titleValue}
           onChange={(event) => setTitleValue(event.target.value)}
+          readOnly={!isEditing}
           placeholder="문서 제목"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-semibold text-slate-900 sm:max-w-md"
+          className={[
+            "w-full rounded-lg border px-3 py-2 text-base font-semibold text-slate-900 outline-none sm:max-w-md",
+            isEditing
+              ? "border-slate-300 bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20"
+              : "border-slate-200 bg-slate-50",
+          ].join(" ")}
         />
         <p className="text-xs text-slate-500">{updatedAtLabel}</p>
       </div>
@@ -102,7 +163,8 @@ export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }:
           <select
             value={fontFamily}
             onChange={(event) => setFontFamily(event.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
+            disabled={!isEditing}
+            className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all duration-150 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
           >
             {FONT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -114,7 +176,8 @@ export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }:
           <select
             value={fontSize}
             onChange={(event) => setFontSize(Number.parseInt(event.target.value, 10))}
-            className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
+            disabled={!isEditing}
+            className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all duration-150 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
           >
             {FONT_SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>
@@ -123,25 +186,30 @@ export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }:
             ))}
           </select>
 
-          <ToolbarButton label="굵게" onClick={() => executeCommand("bold")} />
-          <ToolbarButton label="기울임" onClick={() => executeCommand("italic")} />
-          <ToolbarButton label="밑줄" onClick={() => executeCommand("underline")} />
-          <ToolbarButton label="왼쪽" onClick={() => executeCommand("justifyLeft")} />
-          <ToolbarButton label="가운데" onClick={() => executeCommand("justifyCenter")} />
-          <ToolbarButton label="오른쪽" onClick={() => executeCommand("justifyRight")} />
-          <ToolbarButton label="번호" onClick={() => executeCommand("insertOrderedList")} />
-          <ToolbarButton label="목록" onClick={() => executeCommand("insertUnorderedList")} />
-          <ToolbarButton label="되돌리기" onClick={() => executeCommand("undo")} />
-          <ToolbarButton label="다시" onClick={() => executeCommand("redo")} />
+          <ToolbarButton label="굵게" onClick={() => executeCommand("bold")} disabled={!isEditing} />
+          <ToolbarButton label="기울임" onClick={() => executeCommand("italic")} disabled={!isEditing} />
+          <ToolbarButton label="밑줄" onClick={() => executeCommand("underline")} disabled={!isEditing} />
+          <ToolbarButton label="왼쪽" onClick={() => executeCommand("justifyLeft")} disabled={!isEditing} />
+          <ToolbarButton label="가운데" onClick={() => executeCommand("justifyCenter")} disabled={!isEditing} />
+          <ToolbarButton label="오른쪽" onClick={() => executeCommand("justifyRight")} disabled={!isEditing} />
+          <ToolbarButton label="번호" onClick={() => executeCommand("insertOrderedList")} disabled={!isEditing} />
+          <ToolbarButton label="목록" onClick={() => executeCommand("insertUnorderedList")} disabled={!isEditing} />
+          <ToolbarButton label="되돌리기" onClick={() => executeCommand("undo")} disabled={!isEditing} />
+          <ToolbarButton label="다시" onClick={() => executeCommand("redo")} disabled={!isEditing} />
         </div>
       </div>
 
       <div
         ref={editorRef}
-        contentEditable
+        contentEditable={isEditing}
         suppressContentEditableWarning
         onInput={syncContentField}
-        className="min-h-[480px] rounded-xl border border-slate-200 bg-white p-5 text-slate-900 outline-none focus:ring-2 focus:ring-[#2563eb]/30"
+        className={[
+          "min-h-[480px] rounded-xl border bg-white p-5 text-slate-900 outline-none transition-all duration-150",
+          isEditing
+            ? "border-slate-200 focus:ring-2 focus:ring-[#2563eb]/30"
+            : "border-slate-200 bg-slate-50/60 text-slate-700",
+        ].join(" ")}
         style={{ fontFamily, fontSize: `${fontSize}px`, lineHeight: 1.7 }}
       />
 
@@ -149,7 +217,9 @@ export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }:
         <p className="text-xs text-slate-500">회장단 전용 문서입니다.</p>
         <div className="flex items-center gap-2">
           {noteId ? (
-            <button
+            <ActionButton
+              label="삭제"
+              variant="danger"
               type="submit"
               formAction={deleteChairboardNoteAction}
               onClick={(event) => {
@@ -157,14 +227,21 @@ export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }:
                   event.preventDefault();
                 }
               }}
-              className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
-            >
-              삭제
-            </button>
+            />
           ) : null}
-          <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-            저장
-          </button>
+
+          {isEditing ? (
+            <ActionButton label="저장" variant="primary" type="submit" />
+          ) : (
+            <ActionButton
+              label="수정"
+              variant="secondary"
+              onClick={() => {
+                setIsEditing(true);
+                editorRef.current?.focus();
+              }}
+            />
+          )}
         </div>
       </div>
     </form>

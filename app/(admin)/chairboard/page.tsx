@@ -190,6 +190,7 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
             title={selectedNote?.title ?? "회장단 임원모임 메모"}
             contentHtml={selectedContentHtml}
             updatedAtLabel={updatedAtLabel}
+            initialEditing={isDraft}
           />
         </div>
       </div>
