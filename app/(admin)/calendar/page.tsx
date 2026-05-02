@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Icon } from "@/components/ui/icon";
 import { requireSession } from "@/lib/auth/session";
 import {
   loadGoogleCalendarEventsInRange,
@@ -316,18 +315,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     <div className="min-h-[calc(100vh-2rem)] rounded-[2rem] border border-slate-200 bg-[#f8f9fa] text-slate-900 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.12)]">
       <header className="flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
-            aria-label="메뉴"
-          >
-            <span className="flex flex-col gap-[3px]">
-              <span className="block h-0.5 w-4 rounded-full bg-current" />
-              <span className="block h-0.5 w-4 rounded-full bg-current" />
-              <span className="block h-0.5 w-4 rounded-full bg-current" />
-            </span>
-          </button>
-
           <div className="flex items-center gap-2">
             <div className="grid h-8 w-8 grid-cols-2 grid-rows-2 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
               <span className="bg-[#4285f4]" />
@@ -366,40 +353,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           </div>
           <h2 className="ml-2 text-[22px] font-medium text-slate-900">{formatMonthLabel(visibleMonth)}</h2>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
-            aria-label="검색"
-          >
-            <Icon name="search" className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
-            aria-label="도움말"
-          >
-            <Icon name="help" className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
-            aria-label="설정"
-          >
-            <Icon name="settings" className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            <span>월</span>
-            <span className="text-[10px]">▾</span>
-          </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a73e8] text-sm font-semibold text-white">
-            G
-          </div>
-        </div>
       </header>
 
       {errorMessage ? (
@@ -410,19 +363,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
       <div className="grid min-h-[calc(100vh-4rem)] grid-cols-[280px_minmax(0,1fr)]">
         <aside className="border-r border-slate-200 bg-[#f8f9fa] px-4 py-5">
-          <a
-            href="https://calendar.google.com"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-14 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-[0_2px_10px_-4px_rgba(15,23,42,0.18)] transition hover:shadow-[0_8px_18px_-6px_rgba(15,23,42,0.22)]"
-          >
-            <span className="flex items-center gap-3">
-              <span className="text-2xl leading-none text-slate-900">+</span>
-              만들기
-            </span>
-            <span className="text-xs text-slate-400">▾</span>
-          </a>
-
           <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-slate-900">{formatMonthLabel(visibleMonth)}</h3>
@@ -478,7 +418,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                 <span className="font-semibold text-slate-700">선택한 날짜</span>
                 <span>{selectedDayLabel}</span>
               </div>
-              <div className="space-y-1 rounded-xl bg-slate-50 px-3 py-2">
+            <div className="space-y-1 rounded-xl bg-slate-50 px-3 py-2">
                 {selectedDayEvents.length > 0 ? (
                   selectedDayEvents.slice(0, 2).map((event) => {
                     const color = pickEventColor(event);
@@ -519,15 +459,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                 )}
               </div>
             </div>
-
-            <a
-              href="https://calendar.google.com"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-flex text-sm font-semibold text-[#1a73e8] hover:underline"
-            >
-              Google Calendar 열기
-            </a>
           </section>
         </aside>
 
@@ -608,11 +539,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                           </div>
                         );
                       })}
-                      {day.events.length > 4 ? (
-                        <div className="px-1 text-[11px] font-medium text-slate-500">
-                          +{day.events.length - 4}개 더보기
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 ))}
