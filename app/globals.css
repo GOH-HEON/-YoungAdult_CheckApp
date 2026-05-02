@@ -47,6 +47,48 @@ select {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+  transition:
+    translate 120ms ease,
+    scale 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    opacity 120ms ease;
+}
+
+button:not(:disabled):hover {
+  translate: 0 -1px;
+}
+
+button:not(:disabled):active {
+  translate: 0 1px;
+  scale: 0.98;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+  }
+
+  button:not(:disabled):hover,
+  button:not(:disabled):active {
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
 input[type="date"] {
   color-scheme: light;
 }
