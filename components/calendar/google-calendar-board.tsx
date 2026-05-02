@@ -158,7 +158,7 @@ export function GoogleCalendarBoard({
         <div className="min-h-[calc(100vh-4rem)]">
           <main className="overflow-auto px-4 py-4">
             <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-              <div className="grid grid-cols-7 border-b border-slate-200 text-[11px] font-semibold text-slate-500">
+              <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-slate-200 bg-white text-[11px] font-semibold text-slate-500">
                 {WEEKDAY_LABELS.map((label, index) => (
                   <div
                     key={label}
