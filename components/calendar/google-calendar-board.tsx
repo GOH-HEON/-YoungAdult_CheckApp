@@ -120,7 +120,7 @@ export function GoogleCalendarBoard({
 
   return (
     <>
-      <div className="min-h-[calc(100vh-2rem)] rounded-[2rem] border border-slate-200 bg-[#f8f9fa] text-slate-900 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.12)]">
+      <div className="h-[calc(100dvh-10rem)] min-h-[520px] rounded-[2rem] border border-slate-200 bg-[#f8f9fa] text-slate-900 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.12)]">
         <header className="flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0">
@@ -155,10 +155,10 @@ export function GoogleCalendarBoard({
           </div>
         </header>
 
-        <div className="min-h-[calc(100vh-4rem)]">
-          <main className="overflow-auto px-4 py-4">
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-              <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-slate-200 bg-white text-[11px] font-semibold text-slate-500">
+        <div className="h-[calc(100%-4rem)]">
+          <main className="h-full overflow-auto px-4 py-4">
+            <section className="rounded-3xl border border-slate-200 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
+              <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-white text-[11px] font-semibold text-slate-500">
                 {WEEKDAY_LABELS.map((label, index) => (
                   <div
                     key={label}
@@ -209,7 +209,7 @@ export function GoogleCalendarBoard({
                               key={event.id}
                               type="button"
                               onClick={() => setActiveEvent(event)}
-                              className="flex w-full items-start rounded-md px-1 py-0.5 text-left text-[5px] leading-[1.2] transition hover:bg-slate-100"
+                              className="flex w-full items-start rounded-md px-1 py-0.5 text-left text-[5pt] leading-[1.15] transition hover:bg-slate-100"
                             >
                               <span className="min-w-0 whitespace-normal break-words text-slate-700">
                                 {formatEventTitle(event, timeZone)}
