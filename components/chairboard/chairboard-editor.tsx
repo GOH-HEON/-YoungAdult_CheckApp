@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { saveChairboardNoteAction } from "@/app/(admin)/chairboard/actions";
+import { deleteChairboardNoteAction, saveChairboardNoteAction } from "@/app/(admin)/chairboard/actions";
 
 const FONT_OPTIONS = [
   { label: "Noto Sans KR", value: "'Noto Sans KR', sans-serif" },
@@ -147,9 +147,25 @@ export function ChairboardEditor({ noteId, title, contentHtml, updatedAtLabel }:
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-500">회장단 전용 문서입니다.</p>
-        <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-          저장
-        </button>
+        <div className="flex items-center gap-2">
+          {noteId ? (
+            <button
+              type="submit"
+              formAction={deleteChairboardNoteAction}
+              onClick={(event) => {
+                if (!window.confirm("이 메모를 삭제할까요? 삭제 후 복구할 수 없습니다.")) {
+                  event.preventDefault();
+                }
+              }}
+              className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+            >
+              삭제
+            </button>
+          ) : null}
+          <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+            저장
+          </button>
+        </div>
       </div>
     </form>
   );
