@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireChairboardSession } from "@/lib/auth/session";
+import { canWrite, requireChairboardSession } from "@/lib/auth/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanText } from "@/lib/utils/format";
 
 function redirectChairboard({
@@ -39,10 +40,11 @@ export async function saveChairboardNoteAction(formData: FormData) {
     });
   }
 
-  const { supabase, user } = await requireChairboardSession();
+  const { supabase, user, appUser } = await requireChairboardSession();
+  const chairboardSupabase = canWrite(appUser) ? createSupabaseAdminClient() : supabase;
 
   if (noteId) {
-    const { error } = await supabase
+    const { error } = await chairboardSupabase
       .from("chairboard_notes")
       .update({
         title,
@@ -58,7 +60,7 @@ export async function saveChairboardNoteAction(formData: FormData) {
       });
     }
   } else {
-    const { error } = await supabase.from("chairboard_notes").insert({
+    const { error } = await chairboardSupabase.from("chairboard_notes").insert({
       title,
       content_html: contentHtml,
       created_by: user.id,

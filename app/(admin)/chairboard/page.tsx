@@ -1,6 +1,7 @@
 import { ChairboardEditor } from "@/components/chairboard/chairboard-editor";
 import { PageTitle } from "@/components/ui/page-title";
-import { requireChairboardSession } from "@/lib/auth/session";
+import { canWrite, requireChairboardSession } from "@/lib/auth/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type ChairboardPageProps = {
   searchParams: Promise<{
@@ -37,9 +38,10 @@ function formatUpdatedAt(value: string | null | undefined) {
 
 export default async function ChairboardPage({ searchParams }: ChairboardPageProps) {
   const params = await searchParams;
-  const { supabase } = await requireChairboardSession();
+  const { supabase, appUser } = await requireChairboardSession();
+  const chairboardSupabase = canWrite(appUser) ? createSupabaseAdminClient() : supabase;
 
-  const { data, error } = await supabase
+  const { data, error } = await chairboardSupabase
     .from("chairboard_notes")
     .select("id, title, content_html, updated_at")
     .order("updated_at", { ascending: false })
