@@ -244,7 +244,7 @@ as $$
     select 1
     from public.users u
     where u.id = auth.uid()
-      and u.role = 'chairboard'
+      and u.role in ('admin', 'chairboard')
       and u.is_active = true
   );
 $$;

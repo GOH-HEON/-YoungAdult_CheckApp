@@ -1,13 +1,13 @@
--- Phase 2: Enable read-only executive accounts (viewer/staff)
+-- Phase 2: Enable read-only executive accounts (viewer/staff/chairboard)
 -- Run this in Supabase SQL Editor on production.
 
 begin;
 
--- 1) Expand role constraint to include viewer
+-- 1) Expand role constraint to include viewer/chairboard
 alter table public.users drop constraint if exists users_role_check;
 alter table public.users
   add constraint users_role_check
-  check (role in ('admin', 'viewer', 'staff'));
+  check (role in ('admin', 'viewer', 'staff', 'chairboard'));
 
 -- 2) Access helper functions
 create or replace function public.is_read_user()
@@ -21,7 +21,7 @@ as $$
     select 1
     from public.users u
     where u.id = auth.uid()
-      and u.role in ('admin', 'viewer', 'staff')
+      and u.role in ('admin', 'viewer', 'staff', 'chairboard')
       and u.is_active = true
   );
 $$;

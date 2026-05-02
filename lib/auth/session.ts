@@ -38,7 +38,7 @@ export function canWrite(appUser: AppUserRow | null) {
 }
 
 export function canAccessChairboardByRole(role: string) {
-  return role === "chairboard";
+  return role === "admin" || role === "chairboard";
 }
 
 export function canAccessChairboard(appUser: AppUserRow | null) {
