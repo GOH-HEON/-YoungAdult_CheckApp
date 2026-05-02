@@ -47,15 +47,6 @@ function pickEventColor(event: GoogleCalendarEvent) {
   return EVENT_COLORS[hashString(event.id || event.summary) % EVENT_COLORS.length];
 }
 
-function formatMonthShort(monthKey: string) {
-  const [year, month] = monthKey.split("-").map((value) => Number(value));
-  if (!year || !month) {
-    return monthKey;
-  }
-
-  return `${year}년 ${month}월`;
-}
-
 function formatEventTime(event: GoogleCalendarEvent, timeZone: string) {
   if (event.start.date) {
     return "종일";
@@ -178,61 +169,8 @@ export function GoogleCalendarBoard({
           </div>
         </header>
 
-        <div className="grid min-h-[calc(100vh-4rem)] grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="border-r border-slate-200 bg-[#f8f9fa] px-3 py-4">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">{formatMonthShort(monthKey)}</h3>
-                <div className="flex items-center gap-1">
-                  <Link
-                    href={buildHref(formatMonthShift(monthKey, -1))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
-                    aria-label="이전 달"
-                  >
-                    ‹
-                  </Link>
-                  <Link
-                    href={buildHref(formatMonthShift(monthKey, 1))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
-                    aria-label="다음 달"
-                  >
-                    ›
-                  </Link>
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-7 text-center text-[11px] font-medium text-slate-500">
-                {WEEKDAY_LABELS.map((label) => (
-                  <div key={label} className="py-1">
-                    {label}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-1 grid grid-cols-7 gap-y-1 text-center text-[11px]">
-                {days.map((day) => (
-                  <Link
-                    key={day.key}
-                    href={buildHref(monthKey, day.key)}
-                    className={[
-                      "mx-auto inline-flex h-8 w-8 items-center justify-center rounded-full transition",
-                      day.isSelected
-                        ? "bg-[#1a73e8] text-white"
-                        : day.isToday
-                          ? "bg-[#e8f0fe] text-[#1a73e8]"
-                          : day.inMonth
-                            ? "text-slate-700 hover:bg-slate-100"
-                            : "text-slate-400 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {day.dayNumber}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          </aside>
-
-          <main className="overflow-auto px-3 py-3">
+        <div className="min-h-[calc(100vh-4rem)]">
+          <main className="overflow-auto px-4 py-4">
             <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
               <div className="grid grid-cols-7 border-b border-slate-200 text-[11px] font-semibold text-slate-500">
                 {WEEKDAY_LABELS.map((label, index) => (
