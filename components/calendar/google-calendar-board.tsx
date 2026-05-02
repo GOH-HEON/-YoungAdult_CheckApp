@@ -24,7 +24,6 @@ type GoogleCalendarBoardProps = {
 };
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
-const EVENT_COLORS = ["#1a73e8", "#34a853", "#ea4335", "#f9ab00", "#9333ea", "#0f9d58"] as const;
 
 function buildHref(monthKey: string, dateKey?: string) {
   const params = new URLSearchParams({ month: monthKey });
@@ -32,19 +31,6 @@ function buildHref(monthKey: string, dateKey?: string) {
     params.set("date", dateKey);
   }
   return `/calendar?${params.toString()}`;
-}
-
-function hashString(value: string) {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function pickEventColor(event: GoogleCalendarEvent) {
-  return EVENT_COLORS[hashString(event.id || event.summary) % EVENT_COLORS.length];
 }
 
 function formatEventTime(event: GoogleCalendarEvent, timeZone: string) {
@@ -218,19 +204,14 @@ export function GoogleCalendarBoard({
 
                       <div className="mt-2 space-y-1">
                         {day.events.slice(0, 4).map((event) => {
-                          const color = pickEventColor(event);
                           return (
                             <button
                               key={event.id}
                               type="button"
                               onClick={() => setActiveEvent(event)}
-                              className="flex w-full items-start gap-1.5 rounded-md px-1 py-0.5 text-left text-[11px] leading-4 transition hover:bg-slate-100"
+                              className="flex w-full items-start rounded-md px-1 py-0.5 text-left text-[10px] leading-[1.2] transition hover:bg-slate-100"
                             >
-                              <span
-                                className="mt-[5px] h-2 w-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: color }}
-                              />
-                              <span className="min-w-0 truncate text-slate-700">
+                              <span className="min-w-0 whitespace-normal break-words text-slate-700">
                                 {formatEventTitle(event, timeZone)}
                               </span>
                             </button>
