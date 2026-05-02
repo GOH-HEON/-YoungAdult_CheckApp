@@ -34,6 +34,7 @@ app/
       check/page.tsx
       view/page.tsx
     dashboard/page.tsx
+    calendar/page.tsx
     members/
       [id]/edit/page.tsx
       new/page.tsx
@@ -88,6 +89,7 @@ proxy.ts
 
 - `/login`
 - `/dashboard`
+- `/calendar`
 - `/members`
 - `/members/new`
 - `/members/[id]/edit`
@@ -185,6 +187,10 @@ cp .env.local.example .env.local
 선택(서버 전용):
 
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `GOOGLE_CALENDAR_ID`
+- `GOOGLE_CALENDAR_CREDENTIALS`
+- `GOOGLE_CALENDAR_TOKEN`
+- `GOOGLE_CALENDAR_TIMEZONE`
 
 주의:
 
@@ -229,6 +235,33 @@ on conflict (id) do nothing;
 - `viewer`, `staff`: 조회만 가능
 - 운영 DB에 위 SQL이 실제 반영되기 전까지는 읽기 전용 화면 일부가 서버측 제한 조회 경로를 사용할 수 있습니다.
 - 최종 목표는 `viewer/staff = select only` RLS를 운영 DB에 직접 반영하는 것입니다.
+
+## Google Calendar 연동
+
+`/calendar` 페이지는 Google Calendar API의 `events.list`를 사용해 공유 캘린더의 일정을 읽어옵니다.
+
+환경변수는 다음처럼 넣을 수 있습니다.
+
+- 로컬 개발: 파일 경로를 직접 지정
+- Vercel/운영: JSON 내용을 문자열로 지정
+
+예시:
+
+```bash
+GOOGLE_CALENDAR_ID=your-calendar-id@group.calendar.google.com
+GOOGLE_CALENDAR_CREDENTIALS=/path/to/client_secret.json
+GOOGLE_CALENDAR_TOKEN=/path/to/google_calendar_token.json
+GOOGLE_CALENDAR_TIMEZONE=Asia/Seoul
+```
+
+필요 스코프:
+
+- `https://www.googleapis.com/auth/calendar.readonly`
+
+주의:
+
+- 현재는 읽기 전용입니다.
+- 캘린더 수정/추가는 아직 붙이지 않았습니다.
 
 ## DB 구조
 

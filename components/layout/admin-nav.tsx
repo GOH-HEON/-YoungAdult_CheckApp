@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon";
 
 const navItems = [
   { href: "/dashboard", label: "대시보드", icon: "dashboard", requiresWrite: false, requiresChairboard: false },
+  { href: "/calendar", label: "구글 캘린더", icon: "events", requiresWrite: false, requiresChairboard: false },
   { href: "/members", label: "형제/자매 명단", icon: "members", requiresWrite: false, requiresChairboard: false },
   { href: "/members/new", label: "명단 등록", icon: "newcomer", requiresWrite: true, requiresChairboard: false },
   { href: "/leaders", label: "임원모임 기록", icon: "events", requiresWrite: false, requiresChairboard: false },
