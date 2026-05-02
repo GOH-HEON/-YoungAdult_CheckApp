@@ -209,7 +209,7 @@ export function GoogleCalendarBoard({
                               key={event.id}
                               type="button"
                               onClick={() => setActiveEvent(event)}
-                              className="flex w-full items-start rounded-md px-1 py-0.5 text-left text-[10px] leading-[1.2] transition hover:bg-slate-100"
+                              className="flex w-full items-start rounded-md px-1 py-0.5 text-left text-[8px] leading-[1.2] transition hover:bg-slate-100"
                             >
                               <span className="min-w-0 whitespace-normal break-words text-slate-700">
                                 {formatEventTitle(event, timeZone)}
