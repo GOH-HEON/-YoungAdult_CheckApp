@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PageTitle } from "@/components/ui/page-title";
+import { Icon } from "@/components/ui/icon";
 import { requireSession } from "@/lib/auth/session";
 import {
   loadGoogleCalendarEventsInRange,
@@ -27,6 +27,7 @@ type CalendarDay = {
 };
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+const EVENT_COLORS = ["#1a73e8", "#34a853", "#ea4335", "#f9ab00", "#9333ea", "#0f9d58"] as const;
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -160,14 +161,25 @@ function formatEventTime(event: GoogleCalendarEvent, timeZone: string) {
   return `${formatter.format(start)} - ${formatter.format(end)}`;
 }
 
-function stripHtml(html: string) {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function hashString(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function pickEventColor(event: GoogleCalendarEvent) {
+  return EVENT_COLORS[hashString(event.id || event.summary) % EVENT_COLORS.length];
+}
+
+function formatCellEventLabel(event: GoogleCalendarEvent, timeZone: string) {
+  if (event.start.date) {
+    return event.summary;
+  }
+
+  return `${formatEventTime(event, timeZone)} ${event.summary}`;
 }
 
 function groupEventsByDay(events: GoogleCalendarEvent[], timeZone: string) {
@@ -291,210 +303,323 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     eventsByDay,
     timeZone,
   });
+  const weekRows = Array.from(
+    { length: Math.ceil(monthGrid.days.length / 7) },
+    (_, index) => monthGrid.days.slice(index * 7, index * 7 + 7),
+  );
   const selectedDayEvents = monthGrid.days.find((day) => day.key === selectedDateKey)?.events ?? [];
   const selectedDayLabel = formatDayLabel(selectedDate, timeZone);
   const nextEvent = pickNextEvent(events);
   const monthEventCount = eventsByDay.size;
 
   return (
-    <div className="space-y-6">
-      <PageTitle
-        title="구글 캘린더"
-        description="공유된 구글 캘린더를 월간 달력으로 보여줍니다. 날짜를 누르면 그날 일정을 바로 확인할 수 있습니다."
-      />
+    <div className="min-h-[calc(100vh-2rem)] rounded-[2rem] border border-slate-200 bg-[#f8f9fa] text-slate-900 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.12)]">
+      <header className="flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+            aria-label="메뉴"
+          >
+            <span className="flex flex-col gap-[3px]">
+              <span className="block h-0.5 w-4 rounded-full bg-current" />
+              <span className="block h-0.5 w-4 rounded-full bg-current" />
+              <span className="block h-0.5 w-4 rounded-full bg-current" />
+            </span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <div className="grid h-8 w-8 grid-cols-2 grid-rows-2 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+              <span className="bg-[#4285f4]" />
+              <span className="bg-[#ea4335]" />
+              <span className="bg-[#fbbc05]" />
+              <span className="bg-[#34a853]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[22px] font-medium leading-none text-slate-900">Calendar</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex min-w-0 items-center gap-2">
+          <Link
+            href={buildNavigationHref(startOfMonth(today), todayKey)}
+            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            오늘
+          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              href={buildNavigationHref(addMonths(visibleMonth, -1))}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+              aria-label="이전 달"
+            >
+              ‹
+            </Link>
+            <Link
+              href={buildNavigationHref(addMonths(visibleMonth, 1))}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+              aria-label="다음 달"
+            >
+              ›
+            </Link>
+          </div>
+          <h2 className="ml-2 text-[22px] font-medium text-slate-900">{formatMonthLabel(visibleMonth)}</h2>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+            aria-label="검색"
+          >
+            <Icon name="search" className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+            aria-label="도움말"
+          >
+            <Icon name="help" className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+            aria-label="설정"
+          >
+            <Icon name="settings" className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <span>월</span>
+            <span className="text-[10px]">▾</span>
+          </button>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a73e8] text-sm font-semibold text-white">
+            G
+          </div>
+        </div>
+      </header>
 
       {errorMessage ? (
-        <div className="rounded-2xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="border-b border-rose-200 bg-rose-50 px-6 py-3 text-sm text-rose-700">
           {errorMessage}
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-          <p className="text-sm font-semibold text-slate-500">캘린더</p>
-          <p className="mt-2 text-lg font-bold text-slate-900">
-            {calendarSummary?.summary ?? "구글 캘린더"}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">{calendarSummary?.id ?? "설정된 캘린더 ID"}</p>
-        </div>
+      <div className="grid min-h-[calc(100vh-4rem)] grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="border-r border-slate-200 bg-[#f8f9fa] px-4 py-5">
+          <a
+            href="https://calendar.google.com"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-14 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-[0_2px_10px_-4px_rgba(15,23,42,0.18)] transition hover:shadow-[0_8px_18px_-6px_rgba(15,23,42,0.22)]"
+          >
+            <span className="flex items-center gap-3">
+              <span className="text-2xl leading-none text-slate-900">+</span>
+              만들기
+            </span>
+            <span className="text-xs text-slate-400">▾</span>
+          </a>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-          <p className="text-sm font-semibold text-slate-500">이번 달 일정</p>
-          <p className="mt-2 text-lg font-bold text-slate-900">{formatUpdatedCount(monthEventCount)}개 날짜</p>
-          <p className="mt-1 text-xs text-slate-500">달력에 표시되는 날짜 묶음 수입니다.</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-          <p className="text-sm font-semibold text-slate-500">다음 일정</p>
-          <p className="mt-2 text-lg font-bold text-slate-900">{nextEvent?.summary ?? "일정 없음"}</p>
-          <p className="mt-1 text-xs text-slate-500">
-            {nextEvent ? formatEventTime(nextEvent, timeZone) : "표시할 일정이 없습니다."}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-          <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                <span>Calendar</span>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">
-                  {formatMonthLabel(visibleMonth)}
-                </span>
+          <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-slate-900">{formatMonthLabel(visibleMonth)}</h3>
+              <div className="flex items-center gap-1">
+                <Link
+                  href={buildNavigationHref(addMonths(visibleMonth, -1))}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
+                  aria-label="이전 달"
+                >
+                  ‹
+                </Link>
+                <Link
+                  href={buildNavigationHref(addMonths(visibleMonth, 1))}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
+                  aria-label="다음 달"
+                >
+                  ›
+                </Link>
               </div>
-              <h3 className="text-2xl font-bold text-slate-950">{formatMonthLabel(visibleMonth)}</h3>
-              <p className="text-sm text-slate-500">날짜를 누르면 오른쪽에서 그날의 일정을 볼 수 있습니다.</p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={buildNavigationHref(addMonths(visibleMonth, -1))}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                이전 달
-              </Link>
-              <Link
-                href={buildNavigationHref(startOfMonth(today), todayKey)}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                오늘
-              </Link>
-              <Link
-                href={buildNavigationHref(addMonths(visibleMonth, 1))}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                다음 달
-              </Link>
+            <div className="mt-3 grid grid-cols-7 text-center text-[11px] font-medium text-slate-500">
+              {WEEKDAY_LABELS.map((label) => (
+                <div key={label} className="py-1">
+                  {label}
+                </div>
+              ))}
             </div>
-          </div>
 
-          <div className="mt-4 grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-400">
-            {WEEKDAY_LABELS.map((label, index) => (
-              <div key={label} className={index === 0 ? "text-rose-500" : index === 6 ? "text-blue-500" : ""}>
-                {label}
+            <div className="mt-1 grid grid-cols-7 gap-y-1 text-center text-[11px]">
+              {monthGrid.days.map((day) => (
+                <Link
+                  key={day.key}
+                  href={buildNavigationHref(visibleMonth, day.key)}
+                  className={[
+                    "mx-auto inline-flex h-8 w-8 items-center justify-center rounded-full transition",
+                    day.isSelected
+                      ? "bg-[#1a73e8] text-white"
+                      : day.isToday
+                        ? "bg-[#e8f0fe] text-[#1a73e8]"
+                        : day.inMonth
+                          ? "text-slate-700 hover:bg-slate-100"
+                          : "text-slate-400 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  {day.dayNumber}
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-xs text-slate-500">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">선택한 날짜</span>
+                <span>{selectedDayLabel}</span>
               </div>
-            ))}
-          </div>
+              <div className="space-y-1 rounded-xl bg-slate-50 px-3 py-2">
+                {selectedDayEvents.length > 0 ? (
+                  selectedDayEvents.slice(0, 2).map((event) => {
+                    const color = pickEventColor(event);
 
-          <div className="mt-2 grid grid-cols-7 gap-2">
-            {monthGrid.days.map((day) => (
-              <Link
-                key={day.key}
-                href={buildNavigationHref(visibleMonth, day.key)}
-                className={[
-                  "group min-h-[132px] rounded-2xl border p-3 text-left transition",
-                  day.inMonth ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white" : "border-slate-100 bg-slate-50/50 text-slate-400",
-                  day.isSelected ? "border-[#2563eb] bg-[#eff6ff] shadow-[0_0_0_1px_rgba(37,99,235,0.12)]" : "",
-                  day.isToday ? "ring-1 ring-inset ring-emerald-300" : "",
-                ].join(" ")}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={[
-                      "inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold",
-                      day.isSelected
-                        ? "bg-[#2563eb] text-white"
-                        : day.isToday
-                          ? "bg-emerald-100 text-emerald-700"
-                          : day.inMonth
-                            ? "text-slate-900"
-                            : "text-slate-400",
-                    ].join(" ")}
-                  >
-                    {day.dayNumber}
-                  </span>
-                  {day.events.length > 0 ? (
-                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500 shadow-sm">
-                      {day.events.length}
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-3 space-y-1">
-                  {day.events.slice(0, 3).map((event) => (
-                    <div
-                      key={event.id}
-                      className={[
-                        "rounded-lg border px-2 py-1 text-xs leading-4",
-                        day.isSelected ? "border-[#bfdbfe] bg-white text-slate-700" : "border-slate-200 bg-white text-slate-700",
-                      ].join(" ")}
-                    >
-                      <div className="font-semibold text-[#1d4ed8]">{formatEventTime(event, timeZone)}</div>
-                      <div className="truncate">{event.summary}</div>
-                    </div>
-                  ))}
-                  {day.events.length > 3 ? (
-                    <div className="text-xs font-semibold text-slate-500">+{day.events.length - 3}개 더보기</div>
-                  ) : null}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <aside className="space-y-4">
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-500">선택한 날짜</p>
-                <h4 className="mt-1 text-xl font-bold text-slate-950">{selectedDayLabel}</h4>
+                    return (
+                      <div key={event.id} className="flex items-center gap-1.5">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="min-w-0 truncate text-xs text-slate-600">
+                          {formatCellEventLabel(event, timeZone)}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-500">이 날짜에는 일정이 없습니다.</p>
+                )}
               </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                {selectedDayEvents.length}개
-              </span>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {selectedDayEvents.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-                  이 날짜에는 표시할 일정이 없습니다.
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">표시 범위</span>
+                <span>{formatUpdatedCount(monthEventCount)}개 날짜</span>
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  다음 일정
                 </div>
-              ) : (
-                selectedDayEvents.map((event) => (
-                  <article
-                    key={event.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-slate-300 hover:bg-white"
-                  >
-                    <p className="text-sm font-semibold text-[#1d4ed8]">{formatEventTime(event, timeZone)}</p>
-                    <p className="mt-1 text-base font-bold text-slate-950">{event.summary}</p>
-                    {event.location ? <p className="mt-1 text-sm text-slate-500">장소: {event.location}</p> : null}
-                    {event.description ? (
-                      <p className="mt-2 max-h-24 overflow-hidden text-sm leading-6 text-slate-600">
-                        {stripHtml(event.description).slice(0, 220)}
-                      </p>
-                    ) : null}
-                    {event.htmlLink ? (
-                      <a
-                        href={event.htmlLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-3 inline-flex rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        원본 열기
-                      </a>
-                    ) : null}
-                  </article>
-                ))
-              )}
+                {nextEvent ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="truncate text-sm font-semibold text-slate-900">{nextEvent.summary}</div>
+                    <div className="truncate text-xs text-slate-500">{formatEventTime(nextEvent, timeZone)}</div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    표시할 일정이 없습니다.
+                  </div>
+                )}
+              </div>
             </div>
-          </section>
 
-          <section className="rounded-[2rem] border border-slate-200 bg-[#eff6ff] p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-            <p className="text-sm font-semibold text-[#1d4ed8]">바로가기</p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              Google Calendar에서 직접 열고 싶으면 아래 버튼을 쓰면 됩니다.
-            </p>
             <a
               href="https://calendar.google.com"
               target="_blank"
               rel="noreferrer"
-              className="mt-4 inline-flex rounded-xl bg-[#2563eb] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+              className="mt-4 inline-flex text-sm font-semibold text-[#1a73e8] hover:underline"
             >
               Google Calendar 열기
             </a>
           </section>
         </aside>
+
+        <main className="overflow-auto px-3 py-3">
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
+            <div className="grid grid-cols-7 border-b border-slate-200 text-[11px] font-semibold text-slate-500">
+              {WEEKDAY_LABELS.map((label, index) => (
+                <div
+                  key={label}
+                  className={[
+                    "px-3 py-3 text-center",
+                    index === 0 ? "text-rose-500" : index === 6 ? "text-[#1a73e8]" : "",
+                  ].join(" ")}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            {weekRows.map((week, weekIndex) => (
+              <div key={week[0]?.key ?? String(weekIndex)} className="grid grid-cols-7 border-b border-slate-200 last:border-b-0">
+                {week.map((day) => (
+                  <div
+                    key={day.key}
+                    className={[
+                      "min-h-[148px] border-l border-slate-200 px-2 pb-2 pt-1 first:border-l-0",
+                      day.isSelected ? "bg-[#e8f0fe]" : "bg-white",
+                      !day.inMonth ? "bg-[#fbfbfb] text-slate-400" : "",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-center justify-end">
+                      <Link
+                        href={buildNavigationHref(visibleMonth, day.key)}
+                        className={[
+                          "inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-medium transition",
+                          day.isSelected
+                            ? "bg-[#1a73e8] text-white"
+                            : day.isToday
+                              ? "bg-[#e8f0fe] text-[#1a73e8]"
+                              : "text-slate-700 hover:bg-slate-100",
+                        ].join(" ")}
+                      >
+                        {day.dayNumber}
+                      </Link>
+                    </div>
+
+                    <div className="mt-2 space-y-1">
+                      {day.events.slice(0, 4).map((event) => {
+                        const color = pickEventColor(event);
+                        return event.htmlLink ? (
+                          <a
+                            key={event.id}
+                            href={event.htmlLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-start gap-1.5 rounded-md px-1 py-0.5 text-[11px] leading-4 transition hover:bg-slate-100"
+                          >
+                            <span
+                              className="mt-[5px] h-2 w-2 rounded-full"
+                              style={{ backgroundColor: color }}
+                            />
+                            <span className="min-w-0 truncate text-slate-700">
+                              {formatCellEventLabel(event, timeZone)}
+                            </span>
+                          </a>
+                        ) : (
+                          <div
+                            key={event.id}
+                            className="flex items-start gap-1.5 rounded-md px-1 py-0.5 text-[11px] leading-4"
+                          >
+                            <span
+                              className="mt-[5px] h-2 w-2 rounded-full"
+                              style={{ backgroundColor: color }}
+                            />
+                            <span className="min-w-0 truncate text-slate-700">
+                              {formatCellEventLabel(event, timeZone)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {day.events.length > 4 ? (
+                        <div className="px-1 text-[11px] font-medium text-slate-500">
+                          +{day.events.length - 4}개 더보기
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </section>
+        </main>
       </div>
     </div>
   );
