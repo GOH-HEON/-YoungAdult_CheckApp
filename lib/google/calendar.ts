@@ -172,23 +172,14 @@ async function googleCalendarFetch<T>(url: string, accessToken: string): Promise
   return payload;
 }
 
-export async function loadGoogleCalendarEvents(options?: {
-  daysBack?: number;
-  daysAhead?: number;
+async function loadGoogleCalendarEventsWithRange(options: {
+  timeMin: string;
+  timeMax: string;
   maxResults?: number;
 }) {
   const config = await getGoogleCalendarConfig();
   const accessToken = await fetchGoogleAccessToken(config);
-
-  const daysBack = options?.daysBack ?? 7;
-  const daysAhead = options?.daysAhead ?? 60;
-  const maxResults = options?.maxResults ?? 100;
-
-  const now = new Date();
-  const timeMin = new Date(now);
-  timeMin.setDate(timeMin.getDate() - daysBack);
-  const timeMax = new Date(now);
-  timeMax.setDate(timeMax.getDate() + daysAhead);
+  const maxResults = options.maxResults ?? 100;
 
   const summaryUrl = new URL(
     `https://www.googleapis.com/calendar/v3/users/me/calendarList/${encodeURIComponent(config.calendarId)}`,
@@ -200,8 +191,8 @@ export async function loadGoogleCalendarEvents(options?: {
   eventsUrl.searchParams.set("singleEvents", "true");
   eventsUrl.searchParams.set("orderBy", "startTime");
   eventsUrl.searchParams.set("maxResults", String(maxResults));
-  eventsUrl.searchParams.set("timeMin", timeMin.toISOString());
-  eventsUrl.searchParams.set("timeMax", timeMax.toISOString());
+  eventsUrl.searchParams.set("timeMin", options.timeMin);
+  eventsUrl.searchParams.set("timeMax", options.timeMax);
 
   const [summaryResponse, eventsResponse] = await Promise.all([
     googleCalendarFetch<{
@@ -233,4 +224,32 @@ export async function loadGoogleCalendarEvents(options?: {
       : null,
     events: eventsResponse.items ?? [],
   } satisfies GoogleCalendarEventsResult;
+}
+
+export async function loadGoogleCalendarEvents(options?: {
+  daysBack?: number;
+  daysAhead?: number;
+  maxResults?: number;
+}) {
+  const daysBack = options?.daysBack ?? 7;
+  const daysAhead = options?.daysAhead ?? 60;
+  const now = new Date();
+  const timeMin = new Date(now);
+  timeMin.setDate(timeMin.getDate() - daysBack);
+  const timeMax = new Date(now);
+  timeMax.setDate(timeMax.getDate() + daysAhead);
+
+  return loadGoogleCalendarEventsWithRange({
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+    maxResults: options?.maxResults,
+  });
+}
+
+export async function loadGoogleCalendarEventsInRange(options: {
+  timeMin: string;
+  timeMax: string;
+  maxResults?: number;
+}) {
+  return loadGoogleCalendarEventsWithRange(options);
 }
