@@ -17,11 +17,16 @@ create table if not exists public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
   name text,
-  role text not null default 'admin' check (role in ('admin', 'viewer', 'staff')),
+  role text not null default 'admin' check (role in ('admin', 'viewer', 'staff', 'chairboard')),
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.users drop constraint if exists users_role_check;
+alter table public.users
+  add constraint users_role_check
+  check (role in ('admin', 'viewer', 'staff', 'chairboard'));
 
 create table if not exists public.departments (
   id bigint generated always as identity primary key,
@@ -114,6 +119,16 @@ create table if not exists public.leadership_items (
   )
 );
 
+create table if not exists public.chairboard_notes (
+  id uuid primary key default gen_random_uuid(),
+  title text not null default '회장단 임원모임 메모',
+  content_html text not null default '',
+  created_by uuid references public.users(id),
+  updated_by uuid references public.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table if exists public.leadership_items
   add column if not exists department_name text;
 
@@ -142,6 +157,7 @@ create index if not exists idx_leadership_items_member_id on public.leadership_i
 create index if not exists idx_leadership_items_status on public.leadership_items(status);
 create index if not exists idx_leadership_items_due_date on public.leadership_items(due_date);
 create index if not exists idx_leadership_items_created_at on public.leadership_items(created_at desc);
+create index if not exists idx_chairboard_notes_updated_at on public.chairboard_notes(updated_at desc);
 
 -- updated_at triggers
 create trigger trg_users_updated_at
@@ -180,6 +196,10 @@ create trigger trg_leadership_items_updated_at
 before update on public.leadership_items
 for each row execute function public.set_updated_at();
 
+create trigger trg_chairboard_notes_updated_at
+before update on public.chairboard_notes
+for each row execute function public.set_updated_at();
+
 -- RLS Draft / Baseline
 create or replace function public.is_read_user()
 returns boolean
@@ -192,7 +212,7 @@ as $$
     select 1
     from public.users u
     where u.id = auth.uid()
-      and u.role in ('admin', 'viewer', 'staff')
+      and u.role in ('admin', 'viewer', 'staff', 'chairboard')
       and u.is_active = true
   );
 $$;
@@ -213,10 +233,28 @@ as $$
   );
 $$;
 
+create or replace function public.is_chairboard_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users u
+    where u.id = auth.uid()
+      and u.role = 'chairboard'
+      and u.is_active = true
+  );
+$$;
+
 revoke all on function public.is_read_user() from public;
 grant execute on function public.is_read_user() to authenticated;
 revoke all on function public.is_admin_user() from public;
 grant execute on function public.is_admin_user() to authenticated;
+revoke all on function public.is_chairboard_user() from public;
+grant execute on function public.is_chairboard_user() to authenticated;
 
 alter table public.users enable row level security;
 alter table public.departments enable row level security;
@@ -227,6 +265,7 @@ alter table public.meetings enable row level security;
 alter table public.attendance_records enable row level security;
 alter table public.leadership_meetings enable row level security;
 alter table public.leadership_items enable row level security;
+alter table public.chairboard_notes enable row level security;
 
 drop policy if exists users_admin_all on public.users;
 drop policy if exists users_read_self_or_admin on public.users;
@@ -353,3 +392,16 @@ on public.leadership_items
 for all
 using (public.is_admin_user())
 with check (public.is_admin_user());
+
+drop policy if exists chairboard_notes_chairboard_read on public.chairboard_notes;
+drop policy if exists chairboard_notes_chairboard_write on public.chairboard_notes;
+create policy chairboard_notes_chairboard_read
+on public.chairboard_notes
+for select
+using (public.is_chairboard_user());
+
+create policy chairboard_notes_chairboard_write
+on public.chairboard_notes
+for all
+using (public.is_chairboard_user())
+with check (public.is_chairboard_user());

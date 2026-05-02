@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { hasSupabaseServiceRoleEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export type AppRole = "admin" | "viewer" | "staff";
+export type AppRole = "admin" | "viewer" | "staff" | "chairboard";
 
 export type AppUserRow = {
   id: string;
@@ -22,7 +22,7 @@ export type SessionContext = {
 };
 
 function isReadableRole(role: string): role is AppRole {
-  return role === "admin" || role === "viewer" || role === "staff";
+  return role === "admin" || role === "viewer" || role === "staff" || role === "chairboard";
 }
 
 export function canWriteByRole(role: string) {
@@ -35,6 +35,14 @@ export function canReadByRole(role: string) {
 
 export function canWrite(appUser: AppUserRow | null) {
   return Boolean(appUser && appUser.is_active && canWriteByRole(appUser.role));
+}
+
+export function canAccessChairboardByRole(role: string) {
+  return role === "chairboard";
+}
+
+export function canAccessChairboard(appUser: AppUserRow | null) {
+  return Boolean(appUser && appUser.is_active && canAccessChairboardByRole(appUser.role));
 }
 
 async function readAppUser(
@@ -111,6 +119,16 @@ export async function requireAdminSession(): Promise<SessionContext> {
 
   if (!canWrite(session.appUser)) {
     redirect("/dashboard?level=error&message=읽기 전용 계정은 수정할 수 없습니다.");
+  }
+
+  return session;
+}
+
+export async function requireChairboardSession(): Promise<SessionContext> {
+  const session = await requireSession();
+
+  if (!canAccessChairboard(session.appUser)) {
+    redirect("/dashboard?level=error&message=회장단 전용 페이지입니다.");
   }
 
   return session;

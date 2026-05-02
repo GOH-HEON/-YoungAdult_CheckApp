@@ -6,16 +6,17 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 
 const navItems = [
-  { href: "/dashboard", label: "대시보드", icon: "dashboard", requiresWrite: false },
-  { href: "/members", label: "형제/자매 명단", icon: "members", requiresWrite: false },
-  { href: "/members/new", label: "명단 등록", icon: "newcomer", requiresWrite: true },
-  { href: "/leaders", label: "임원모임 기록", icon: "events", requiresWrite: false },
-  { href: "/attendance/check", label: "출석 체크", icon: "attendance", requiresWrite: true },
-  { href: "/attendance/view", label: "출석 조회", icon: "view-attendance", requiresWrite: false },
-  { href: "/attendance/print", label: "출석부 인쇄", icon: "reports", requiresWrite: false },
-  { href: "/newcomers", label: "새가족", icon: "plus-user", requiresWrite: false },
-  { href: "/reports", label: "리포트", icon: "reports", requiresWrite: false },
-  { href: "/settings", label: "설정", icon: "settings", requiresWrite: true },
+  { href: "/dashboard", label: "대시보드", icon: "dashboard", requiresWrite: false, requiresChairboard: false },
+  { href: "/members", label: "형제/자매 명단", icon: "members", requiresWrite: false, requiresChairboard: false },
+  { href: "/members/new", label: "명단 등록", icon: "newcomer", requiresWrite: true, requiresChairboard: false },
+  { href: "/leaders", label: "임원모임 기록", icon: "events", requiresWrite: false, requiresChairboard: false },
+  { href: "/chairboard", label: "회장단 메모", icon: "events", requiresWrite: false, requiresChairboard: true },
+  { href: "/attendance/check", label: "출석 체크", icon: "attendance", requiresWrite: true, requiresChairboard: false },
+  { href: "/attendance/view", label: "출석 조회", icon: "view-attendance", requiresWrite: false, requiresChairboard: false },
+  { href: "/attendance/print", label: "출석부 인쇄", icon: "reports", requiresWrite: false, requiresChairboard: false },
+  { href: "/newcomers", label: "새가족", icon: "plus-user", requiresWrite: false, requiresChairboard: false },
+  { href: "/reports", label: "리포트", icon: "reports", requiresWrite: false, requiresChairboard: false },
+  { href: "/settings", label: "설정", icon: "settings", requiresWrite: true, requiresChairboard: false },
 ] as const;
 
 function isActivePath(pathname: string, href: string) {
@@ -26,9 +27,19 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AdminNav({ canWrite }: { canWrite: boolean }) {
+export function AdminNav({ canWrite, canAccessChairboard }: { canWrite: boolean; canAccessChairboard: boolean }) {
   const pathname = usePathname();
-  const visibleNavItems = navItems.filter((item) => !item.requiresWrite || canWrite);
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.requiresWrite && !canWrite) {
+      return false;
+    }
+
+    if (item.requiresChairboard && !canAccessChairboard) {
+      return false;
+    }
+
+    return true;
+  });
 
   return (
     <nav aria-label="관리자 메뉴" className="space-y-2">

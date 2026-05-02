@@ -11,7 +11,7 @@ as $$
     select 1
     from public.users u
     where u.id = auth.uid()
-      and u.role in ('admin', 'viewer', 'staff')
+      and u.role in ('admin', 'viewer', 'staff', 'chairboard')
       and u.is_active = true
   );
 $$;
@@ -32,10 +32,28 @@ as $$
   );
 $$;
 
+create or replace function public.is_chairboard_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users u
+    where u.id = auth.uid()
+      and u.role = 'chairboard'
+      and u.is_active = true
+  );
+$$;
+
 revoke all on function public.is_read_user() from public;
 grant execute on function public.is_read_user() to authenticated;
 revoke all on function public.is_admin_user() from public;
 grant execute on function public.is_admin_user() to authenticated;
+revoke all on function public.is_chairboard_user() from public;
+grant execute on function public.is_chairboard_user() to authenticated;
 
 alter table public.members enable row level security;
 alter table public.newcomer_profiles enable row level security;
@@ -46,6 +64,7 @@ alter table public.meeting_types enable row level security;
 alter table public.users enable row level security;
 alter table public.leadership_meetings enable row level security;
 alter table public.leadership_items enable row level security;
+alter table public.chairboard_notes enable row level security;
 
 drop policy if exists users_admin_all on public.users;
 drop policy if exists users_read_self_or_admin on public.users;
@@ -172,3 +191,16 @@ on public.leadership_items
 for all
 using (public.is_admin_user())
 with check (public.is_admin_user());
+
+drop policy if exists chairboard_notes_chairboard_read on public.chairboard_notes;
+drop policy if exists chairboard_notes_chairboard_write on public.chairboard_notes;
+create policy chairboard_notes_chairboard_read
+on public.chairboard_notes
+for select
+using (public.is_chairboard_user());
+
+create policy chairboard_notes_chairboard_write
+on public.chairboard_notes
+for all
+using (public.is_chairboard_user())
+with check (public.is_chairboard_user());

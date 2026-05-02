@@ -21,11 +21,13 @@ export function AdminShell({
   userDisplayName,
   userEmail,
   canWrite,
+  canAccessChairboard,
 }: {
   children: React.ReactNode;
   userDisplayName: string;
   userEmail: string;
   canWrite: boolean;
+  canAccessChairboard: boolean;
 }) {
   const initials = getInitials(userDisplayName);
 
@@ -43,7 +45,7 @@ export function AdminShell({
             </div>
           </div>
 
-          <AdminNav canWrite={canWrite} />
+          <AdminNav canWrite={canWrite} canAccessChairboard={canAccessChairboard} />
 
           <div className="mt-10 space-y-4">
             {canWrite ? (
