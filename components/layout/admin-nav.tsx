@@ -70,7 +70,7 @@ export function AdminNav({ canWrite }: { canWrite: boolean }) {
 
         if (children.length > 0) {
           return (
-            <div key={entry.label} className="group relative shrink-0">
+            <div key={entry.label} className="group relative shrink-0 py-2">
               <button
                 type="button"
                 className={[
@@ -85,7 +85,7 @@ export function AdminNav({ canWrite }: { canWrite: boolean }) {
                 <span className="text-xs leading-none opacity-70">▾</span>
               </button>
 
-              <div className="invisible absolute left-0 top-full z-40 mt-2 min-w-56 rounded-xl border border-slate-200 bg-white p-2 opacity-0 shadow-[0_18px_45px_-18px_rgba(15,23,42,0.35)] transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+              <div className="invisible absolute left-0 top-full z-40 min-w-56 rounded-xl border border-slate-200 bg-white p-2 opacity-0 shadow-[0_18px_45px_-18px_rgba(15,23,42,0.35)] transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                 {children.map((child) => {
                   const childActive = isActivePath(pathname, child.href);
 
