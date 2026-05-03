@@ -46,6 +46,7 @@ type LeadershipMeetingRow = {
 
 type LeadershipItemRow = {
   id: string;
+  meeting_id?: string;
   category: LeadershipNoteCategory;
   content: string;
   department_name: string | null;
@@ -169,6 +170,21 @@ function itemMemberName(item: LeadershipItemRow) {
   return item.member_name ?? item.members?.name ?? "공통";
 }
 
+function meetingPreviewText(items: LeadershipItemRow[]) {
+  if (items.length === 0) {
+    return "아직 기록된 안건이 없습니다.";
+  }
+
+  const preview = items
+    .slice(0, 2)
+    .map((item) => item.content)
+    .join(" / ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return preview.length > 72 ? `${preview.slice(0, 72)}...` : preview;
+}
+
 export default async function LeadersPage({ searchParams }: LeadersPageProps) {
   const params = await searchParams;
   const selectedDate = normalizeDateParam(params.date);
@@ -196,7 +212,7 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
     supabase
       .from("leadership_items")
       .select(
-        "id, category, content, department_name, member_name, status, due_date, created_at, leadership_meetings(meeting_date), members(name, departments(name))",
+        "id, meeting_id, category, content, department_name, member_name, status, due_date, created_at, leadership_meetings(meeting_date), members(name, departments(name))",
       )
       .order("created_at", { ascending: false })
       .limit(48),
@@ -239,13 +255,23 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
     ),
   }));
 
+  const recentItemRows = (recentItems as LeadershipItemRow[] | null) ?? [];
   const groupedRecentItems = LEADERSHIP_NOTE_CATEGORY_OPTIONS.map((category) => ({
     category,
-    items:
-      ((recentItems as LeadershipItemRow[] | null) ?? []).filter((item) => item.category === category).slice(0, 6),
+    items: recentItemRows.filter((item) => item.category === category).slice(0, 6),
   }));
 
   const openVisitPlans = sortVisitPlans((pendingVisitPlans as LeadershipItemRow[] | null) ?? []);
+  const recentItemsByMeetingId = recentItemRows.reduce((groupedItems, item) => {
+    if (!item.meeting_id) {
+      return groupedItems;
+    }
+
+    const nextItems = groupedItems.get(item.meeting_id) ?? [];
+    nextItems.push(item);
+    groupedItems.set(item.meeting_id, nextItems);
+    return groupedItems;
+  }, new Map<string, LeadershipItemRow[]>());
 
   const errors = [
     membersError ? `부서원 조회 오류: ${membersError.message}` : null,
@@ -297,61 +323,90 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
         </section>
       ) : null}
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-end gap-3">
-            <form className="flex flex-wrap items-end gap-3">
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-slate-700">회의 날짜</span>
-                <input
-                  type="date"
-                  name="date"
-                  defaultValue={selectedDate}
-                  className="rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </label>
-              <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                불러오기
-              </button>
-            </form>
-
-            <div className="rounded-lg bg-slate-50 px-4 py-2 text-sm text-slate-600">
-              {currentMeeting
-                ? `${formatDate(currentMeeting.meeting_date)} 회의 기록 ${currentItems?.length ?? 0}건`
-                : `${formatDate(selectedDate)} 회의는 아직 기록이 없습니다. 첫 저장 시 자동 생성됩니다.`}
+      <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+        <aside className="space-y-4 self-start rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-28">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">저장된 기록</h3>
+              <p className="text-sm text-slate-500">{recentMeetings?.length ?? 0}개</p>
             </div>
+            <Link
+              href={`/leaders?date=${formatDateInputValue()}`}
+              className={[
+                "rounded-xl border px-4 py-3 text-sm font-bold transition active:translate-y-[1px] active:scale-[0.98]",
+                selectedDate === formatDateInputValue()
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              새 기록
+            </Link>
           </div>
-        </div>
 
-        <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">최근 회의</h3>
-            <span className="text-xs font-medium text-slate-500">빠른 이동</span>
-          </div>
-          <div className="mt-4 space-y-2">
-            {((recentMeetings as LeadershipMeetingRow[] | null) ?? []).map((meeting) => (
-              <Link
-                key={meeting.id}
-                href={`/leaders?date=${meeting.meeting_date}`}
-                className={[
-                  "block rounded-xl border px-3 py-3 transition",
-                  meeting.meeting_date === selectedDate
-                    ? "border-blue-200 bg-blue-50 text-blue-800"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
-                ].join(" ")}
-              >
-                <div className="text-sm font-semibold">{formatDate(meeting.meeting_date)}</div>
-                <div className="mt-1 text-xs text-slate-500">{meeting.title}</div>
-              </Link>
-            ))}
+          <div className="space-y-3">
+            {((recentMeetings as LeadershipMeetingRow[] | null) ?? []).map((meeting) => {
+              const meetingItems = recentItemsByMeetingId.get(meeting.id) ?? [];
+              const active = meeting.meeting_date === selectedDate;
+
+              return (
+                <Link
+                  key={meeting.id}
+                  href={`/leaders?date=${meeting.meeting_date}`}
+                  className={[
+                    "block rounded-2xl border px-4 py-4 transition active:translate-y-[1px] active:scale-[0.99]",
+                    active
+                      ? "border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-bold text-slate-900">
+                        {formatDate(meeting.meeting_date)} 임원모임
+                      </p>
+                      <p className="mt-1 truncate text-xs font-semibold text-slate-500">{meeting.title}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-500">
+                      {meetingItems.length}건
+                    </span>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{meetingPreviewText(meetingItems)}</p>
+                </Link>
+              );
+            })}
             {(recentMeetings?.length ?? 0) === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-4 text-sm text-slate-500">
+              <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                 아직 저장된 임원모임 회차가 없습니다.
               </p>
             ) : null}
           </div>
         </aside>
-      </section>
+
+        <div className="space-y-8">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-end gap-3">
+              <form className="flex flex-wrap items-end gap-3">
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium text-slate-700">회의 날짜</span>
+                  <input
+                    type="date"
+                    name="date"
+                    defaultValue={selectedDate}
+                    className="rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+                <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                  불러오기
+                </button>
+              </form>
+
+              <div className="rounded-lg bg-slate-50 px-4 py-2 text-sm text-slate-600">
+                {currentMeeting
+                  ? `${formatDate(currentMeeting.meeting_date)} 회의 기록 ${currentItems?.length ?? 0}건`
+                  : `${formatDate(selectedDate)} 회의는 아직 기록이 없습니다. 첫 저장 시 자동 생성됩니다.`}
+              </div>
+            </div>
+          </section>
 
       <section className="space-y-5">
         {groupedCurrentItems.map(({ category, items }) => {
@@ -595,6 +650,8 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
           </div>
         </section>
       </section>
+        </div>
+      </div>
     </div>
   );
 }
