@@ -177,7 +177,7 @@ export function GoogleCalendarBoard({
                   key={week[0]?.key ?? String(weekIndex)}
                   className="grid grid-cols-7 border-b border-slate-200 last:border-b-0"
                 >
-                  {week.map((day) => (
+                  {week.map((day, dayIndex) => (
                     <div
                       key={day.key}
                       className={[
@@ -195,7 +195,11 @@ export function GoogleCalendarBoard({
                               ? "bg-[#1a73e8] text-white"
                               : day.isToday
                                 ? "bg-[#e8f0fe] text-[#1a73e8]"
-                                : "text-slate-700 hover:bg-slate-100",
+                                : dayIndex === 0
+                                  ? "text-rose-500 hover:bg-rose-50"
+                                  : dayIndex === 6
+                                    ? "text-[#1a73e8] hover:bg-blue-50"
+                                    : "text-slate-700 hover:bg-slate-100",
                           ].join(" ")}
                         >
                           {day.dayNumber}
