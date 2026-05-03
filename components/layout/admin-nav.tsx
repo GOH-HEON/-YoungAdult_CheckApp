@@ -56,6 +56,13 @@ function getVisibleChildren(children: NavChild[] | undefined, canWrite: boolean)
   return (children ?? []).filter((child) => !child.requiresWrite || canWrite);
 }
 
+function getTopMenuClass(active: boolean) {
+  return [
+    "inline-flex h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold leading-none transition",
+    active ? "bg-[#2563eb] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+  ].join(" ");
+}
+
 export function AdminNav({ canWrite }: { canWrite: boolean }) {
   const pathname = usePathname();
   const visibleEntries = navEntries.filter((entry) => !entry.requiresWrite || canWrite);
@@ -73,16 +80,11 @@ export function AdminNav({ canWrite }: { canWrite: boolean }) {
             <div key={entry.label} className="group relative shrink-0 py-2">
               <button
                 type="button"
-                className={[
-                  "inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition",
-                  active
-                    ? "bg-[#2563eb] text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
-                ].join(" ")}
+                className={getTopMenuClass(active)}
               >
                 <Icon name={entry.icon} className="h-4 w-4" filled={active && entry.icon === "dashboard"} />
-                {entry.label}
-                <span className="text-xs leading-none opacity-70">▾</span>
+                <span>{entry.label}</span>
+                <span className="text-xs font-semibold leading-none opacity-70">▾</span>
               </button>
 
               <div className="invisible absolute left-0 top-full z-40 min-w-56 rounded-xl border border-slate-200 bg-white p-2 opacity-0 shadow-[0_18px_45px_-18px_rgba(15,23,42,0.35)] transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
@@ -118,13 +120,10 @@ export function AdminNav({ canWrite }: { canWrite: boolean }) {
           <Link
             key={entry.href}
             href={entry.href}
-            className={[
-              "inline-flex h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition",
-              active ? "bg-[#2563eb] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
-            ].join(" ")}
+            className={getTopMenuClass(active)}
           >
             <Icon name={entry.icon} className="h-4 w-4" filled={active && entry.icon === "dashboard"} />
-            {entry.label}
+            <span>{entry.label}</span>
           </Link>
         );
       })}
