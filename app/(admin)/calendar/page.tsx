@@ -23,6 +23,13 @@ type CalendarDay = {
   events: GoogleCalendarEvent[];
 };
 
+type CalendarSpanEvent = {
+  id: string;
+  startKey: string;
+  endKey: string;
+  event: GoogleCalendarEvent;
+};
+
 function pad(value: number) {
   return String(value).padStart(2, "0");
 }
@@ -112,6 +119,17 @@ function getEventStartDate(event: GoogleCalendarEvent) {
   return new Date(event.start.dateTime ?? `${event.start.date}T00:00:00`);
 }
 
+function getEventEndDate(event: GoogleCalendarEvent) {
+  const rawEnd = event.end.dateTime ?? (event.end.date ? `${event.end.date}T00:00:00` : "");
+  const end = new Date(rawEnd);
+
+  if (Number.isNaN(end.getTime())) {
+    return end;
+  }
+
+  return new Date(end.getTime() - 1);
+}
+
 function toDateKey(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
@@ -121,22 +139,46 @@ function toDateKey(date: Date, timeZone: string) {
   }).format(date);
 }
 
-function groupEventsByDay(events: GoogleCalendarEvent[], timeZone: string) {
+function getEventDateRange(event: GoogleCalendarEvent, timeZone: string) {
+  const start = getEventStartDate(event);
+  const end = getEventEndDate(event);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
+
+  return {
+    startKey: toDateKey(start, timeZone),
+    endKey: toDateKey(end, timeZone),
+  };
+}
+
+function buildCalendarEvents(events: GoogleCalendarEvent[], timeZone: string) {
   const map = new Map<string, GoogleCalendarEvent[]>();
+  const spanEvents: CalendarSpanEvent[] = [];
 
   for (const event of events) {
-    const start = getEventStartDate(event);
-    if (Number.isNaN(start.getTime())) {
+    const range = getEventDateRange(event, timeZone);
+    if (!range) {
       continue;
     }
 
-    const key = toDateKey(start, timeZone);
-    const existing = map.get(key) ?? [];
+    if (range.startKey !== range.endKey) {
+      spanEvents.push({
+        id: event.id,
+        event,
+        startKey: range.startKey,
+        endKey: range.endKey,
+      });
+      continue;
+    }
+
+    const existing = map.get(range.startKey) ?? [];
     existing.push(event);
-    map.set(key, existing);
+    map.set(range.startKey, existing);
   }
 
-  return map;
+  return { eventsByDay: map, spanEvents };
 }
 
 function buildMonthGrid(params: {
@@ -215,7 +257,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   }
 
   const timeZone = calendarSummary?.timeZone ?? "Asia/Seoul";
-  const eventsByDay = groupEventsByDay(events, timeZone);
+  const { eventsByDay, spanEvents } = buildCalendarEvents(events, timeZone);
   const monthGrid = buildMonthGrid({
     visibleMonth,
     selectedDateKey,
@@ -242,6 +284,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         todayMonthKey={todayMonthKey}
         todayDateKey={todayKey}
         days={days}
+        spanEvents={spanEvents}
         timeZone={timeZone}
       />
     </div>

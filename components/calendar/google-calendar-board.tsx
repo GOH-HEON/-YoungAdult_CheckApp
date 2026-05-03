@@ -14,12 +14,20 @@ type CalendarDayView = {
   events: GoogleCalendarEvent[];
 };
 
+type CalendarSpanEvent = {
+  id: string;
+  startKey: string;
+  endKey: string;
+  event: GoogleCalendarEvent;
+};
+
 type GoogleCalendarBoardProps = {
   monthKey: string;
   monthLabel: string;
   todayMonthKey: string;
   todayDateKey: string;
   days: CalendarDayView[];
+  spanEvents: CalendarSpanEvent[];
   timeZone: string;
 };
 
@@ -122,12 +130,42 @@ function getDateNumberColor(day: CalendarDayView, dayIndex: number) {
   return day.inMonth ? "#334155" : "#94a3b8";
 }
 
+function buildWeekSpanSegments(week: CalendarDayView[], spanEvents: CalendarSpanEvent[]) {
+  const weekStartKey = week[0]?.key;
+  const weekEndKey = week[6]?.key;
+
+  if (!weekStartKey || !weekEndKey) {
+    return [];
+  }
+
+  return spanEvents
+    .filter((spanEvent) => spanEvent.startKey <= weekEndKey && spanEvent.endKey >= weekStartKey)
+    .map((spanEvent) => {
+      const startIndex = spanEvent.startKey <= weekStartKey
+        ? 0
+        : week.findIndex((day) => day.key === spanEvent.startKey);
+      const endIndex = spanEvent.endKey >= weekEndKey
+        ? 6
+        : week.findIndex((day) => day.key === spanEvent.endKey);
+
+      return {
+        ...spanEvent,
+        startIndex: Math.max(startIndex, 0),
+        endIndex: Math.max(endIndex, 0),
+        startsInWeek: spanEvent.startKey >= weekStartKey,
+        endsInWeek: spanEvent.endKey <= weekEndKey,
+      };
+    })
+    .filter((segment) => segment.endIndex >= segment.startIndex);
+}
+
 export function GoogleCalendarBoard({
   monthKey,
   monthLabel,
   todayMonthKey,
   todayDateKey,
   days,
+  spanEvents,
   timeZone,
 }: GoogleCalendarBoardProps) {
   const [activeEvent, setActiveEvent] = useState<GoogleCalendarEvent | null>(null);
@@ -204,53 +242,83 @@ export function GoogleCalendarBoard({
                 ))}
               </div>
 
-              {weekRows.map((week, weekIndex) => (
-                <div
-                  key={week[0]?.key ?? String(weekIndex)}
-                  className="grid grid-cols-7 border-b border-slate-200 last:border-b-0"
-                >
-                  {week.map((day, dayIndex) => (
-                    <div
-                      key={day.key}
-                      className={[
-                        "min-h-[156px] border-l border-slate-200 px-2 pb-2 pt-1 first:border-l-0",
-                        day.isSelected ? "bg-[#e8f0fe]" : "bg-white",
-                        !day.inMonth ? "bg-[#fbfbfb] text-slate-400" : "",
-                      ].join(" ")}
-                    >
-                      <div className="flex items-center justify-end">
-                        <Link
-                          href={buildHref(monthKey, day.key)}
-                          className={[
-                            "inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-medium transition",
-                            getDateNumberClass(day, dayIndex),
-                          ].join(" ")}
-                          style={{ color: getDateNumberColor(day, dayIndex) }}
-                        >
-                          {day.dayNumber}
-                        </Link>
-                      </div>
+              {weekRows.map((week, weekIndex) => {
+                const weekSpanSegments = buildWeekSpanSegments(week, spanEvents);
+                const eventListOffset = weekSpanSegments.length > 0 ? weekSpanSegments.length * 30 + 8 : 0;
 
-                      <div className="mt-2 space-y-1">
-                        {day.events.slice(0, 4).map((event) => {
-                          return (
-                            <button
-                              key={event.id}
-                              type="button"
-                              onClick={() => setActiveEvent(event)}
-                              className="flex w-full items-start rounded-md px-1 py-0.5 text-left text-[9pt] leading-[1.2] transition hover:bg-slate-100"
+                return (
+                  <div
+                    key={week[0]?.key ?? String(weekIndex)}
+                    className="relative border-b border-slate-200 last:border-b-0"
+                  >
+                    <div className="grid grid-cols-7">
+                      {week.map((day, dayIndex) => (
+                        <div
+                          key={day.key}
+                          className={[
+                            "min-h-[156px] border-l border-slate-200 px-2 pb-2 pt-1 first:border-l-0",
+                            day.isSelected ? "bg-[#e8f0fe]" : "bg-white",
+                            !day.inMonth ? "bg-[#fbfbfb] text-slate-400" : "",
+                          ].join(" ")}
+                        >
+                          <div className="flex items-center justify-end">
+                            <Link
+                              href={buildHref(monthKey, day.key)}
+                              className={[
+                                "inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-medium transition",
+                                getDateNumberClass(day, dayIndex),
+                              ].join(" ")}
+                              style={{ color: getDateNumberColor(day, dayIndex) }}
                             >
-                              <span className="block min-w-0 whitespace-normal break-words text-[9pt] leading-[1.2] text-slate-700">
-                                {formatEventTitle(event, timeZone)}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                              {day.dayNumber}
+                            </Link>
+                          </div>
+
+                          <div className="space-y-1" style={{ marginTop: eventListOffset || 8 }}>
+                            {day.events.slice(0, 4).map((event) => {
+                              return (
+                                <button
+                                  key={event.id}
+                                  type="button"
+                                  onClick={() => setActiveEvent(event)}
+                                  className="flex w-full items-start rounded-md px-1 py-0.5 text-left text-[9pt] leading-[1.2] transition hover:bg-slate-100"
+                                >
+                                  <span className="block min-w-0 whitespace-normal break-words text-[9pt] leading-[1.2] text-slate-700">
+                                    {formatEventTitle(event, timeZone)}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ))}
+
+                    {weekSpanSegments.length > 0 ? (
+                      <div className="pointer-events-none absolute left-0 right-0 top-10 grid grid-cols-7 gap-0">
+                        {weekSpanSegments.map((segment, segmentIndex) => (
+                          <button
+                            key={`${segment.id}-${week[0]?.key}`}
+                            type="button"
+                            onClick={() => setActiveEvent(segment.event)}
+                            className={[
+                              "pointer-events-auto mx-1 h-6 truncate bg-[#e97870] px-3 text-left text-[9pt] font-medium leading-6 text-white shadow-sm transition hover:bg-[#df6b63]",
+                              segment.startsInWeek ? "rounded-l-lg" : "",
+                              segment.endsInWeek ? "rounded-r-lg" : "",
+                            ].join(" ")}
+                            style={{
+                              gridColumn: `${segment.startIndex + 1} / span ${segment.endIndex - segment.startIndex + 1}`,
+                              gridRow: segmentIndex + 1,
+                            }}
+                          >
+                            {formatEventTitle(segment.event, timeZone)}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </section>
           </main>
         </div>
