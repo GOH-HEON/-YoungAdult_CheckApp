@@ -1,5 +1,5 @@
 import { AdminShell } from "@/components/layout/admin-shell";
-import { canWrite, requireSession } from "@/lib/auth/session";
+import { canAccessChairboard, canWrite, requireSession } from "@/lib/auth/session";
 
 export default async function AdminLayout({
   children,
@@ -13,6 +13,7 @@ export default async function AdminLayout({
       userDisplayName={appUser?.name ?? user.email ?? "관리자"}
       userEmail={user.email ?? ""}
       canWrite={canWrite(appUser)}
+      canAccessChairboard={canAccessChairboard(appUser)}
     >
       {children}
     </AdminShell>

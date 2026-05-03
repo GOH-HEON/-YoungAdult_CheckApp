@@ -9,8 +9,9 @@ import { Icon } from "@/components/ui/icon";
 type NavChild = {
   href: string;
   label: string;
-  icon: "members" | "newcomer" | "plus-user" | "attendance" | "view-attendance" | "reports";
+  icon: "members" | "newcomer" | "plus-user" | "attendance" | "view-attendance" | "reports" | "events";
   requiresWrite?: boolean;
+  requiresChairboard?: boolean;
 };
 
 type NavEntry = {
@@ -42,6 +43,14 @@ const navEntries: NavEntry[] = [
       { href: "/attendance/print", label: "출석부 인쇄", icon: "reports" },
     ],
   },
+  {
+    label: "교제내용 기록",
+    icon: "events",
+    children: [
+      { href: "/leaders", label: "임원모임 기록", icon: "events" },
+      { href: "/chairboard", label: "회장단 메모", icon: "events", requiresChairboard: true },
+    ],
+  },
   { href: "/reports", label: "리포트", icon: "reports" },
   { href: "/settings", label: "설정", icon: "settings", requiresWrite: true },
 ];
@@ -54,8 +63,18 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function getVisibleChildren(children: NavChild[] | undefined, canWrite: boolean) {
-  return (children ?? []).filter((child) => !child.requiresWrite || canWrite);
+function getVisibleChildren(children: NavChild[] | undefined, canWrite: boolean, canAccessChairboard: boolean) {
+  return (children ?? []).filter((child) => {
+    if (child.requiresWrite && !canWrite) {
+      return false;
+    }
+
+    if (child.requiresChairboard && !canAccessChairboard) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 function getTopMenuClass(active: boolean) {
@@ -65,7 +84,13 @@ function getTopMenuClass(active: boolean) {
   ].join(" ");
 }
 
-export function AdminNav({ canWrite }: { canWrite: boolean }) {
+export function AdminNav({
+  canWrite,
+  canAccessChairboard,
+}: {
+  canWrite: boolean;
+  canAccessChairboard: boolean;
+}) {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const visibleEntries = navEntries.filter((entry) => !entry.requiresWrite || canWrite);
@@ -73,7 +98,7 @@ export function AdminNav({ canWrite }: { canWrite: boolean }) {
   return (
     <nav aria-label="관리자 메뉴" className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
       {visibleEntries.map((entry) => {
-        const children = getVisibleChildren(entry.children, canWrite);
+        const children = getVisibleChildren(entry.children, canWrite, canAccessChairboard);
         const active = entry.href
           ? isActivePath(pathname, entry.href)
           : children.some((child) => isActivePath(pathname, child.href));
