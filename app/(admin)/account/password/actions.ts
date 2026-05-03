@@ -19,11 +19,16 @@ function isValidPassword(password: string) {
 }
 
 export async function updateCurrentPasswordAction(formData: FormData) {
+  const currentPassword = cleanText(formData.get("currentPassword"));
   const password = cleanText(formData.get("password"));
   const confirmPassword = cleanText(formData.get("confirmPassword"));
 
-  if (!password || !confirmPassword) {
-    redirectPasswordPage("새 비밀번호와 확인 값을 모두 입력해 주세요.", "error");
+  if (!currentPassword || !password || !confirmPassword) {
+    redirectPasswordPage("현재 비밀번호, 새 비밀번호, 확인 값을 모두 입력해 주세요.", "error");
+  }
+
+  if (currentPassword === password) {
+    redirectPasswordPage("새 비밀번호는 현재 비밀번호와 다르게 입력해 주세요.", "error");
   }
 
   if (password !== confirmPassword) {
@@ -34,7 +39,16 @@ export async function updateCurrentPasswordAction(formData: FormData) {
     redirectPasswordPage("비밀번호는 6자 이상이며 영문자와 특수문자를 포함해야 합니다.", "error");
   }
 
-  const { supabase } = await requireSession();
+  const { supabase, user } = await requireSession();
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email ?? "",
+    password: currentPassword,
+  });
+
+  if (verifyError) {
+    redirectPasswordPage("현재 비밀번호가 일치하지 않습니다.", "error");
+  }
+
   const { error } = await supabase.auth.updateUser({
     password,
   });

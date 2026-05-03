@@ -37,6 +37,18 @@ export default async function PasswordPage({ searchParams }: PasswordPageProps) 
 
       <form action={updateCurrentPasswordAction} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <label className="block space-y-1.5">
+          <span className="text-sm font-semibold text-slate-700">현재 비밀번호</span>
+          <input
+            name="currentPassword"
+            type="password"
+            minLength={6}
+            required
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20"
+          />
+        </label>
+
+        <label className="block space-y-1.5">
           <span className="text-sm font-semibold text-slate-700">새 비밀번호</span>
           <input
             name="password"
