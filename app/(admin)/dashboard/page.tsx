@@ -1,64 +1,8 @@
 import Link from "next/link";
 
 import { Icon } from "@/components/ui/icon";
-import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
-import { formatDate } from "@/lib/utils/format";
-
-type RecentNewcomer = {
-  id: string;
-  registered_at: string;
-  members: {
-    id: string;
-    name: string;
-    departments: {
-      name: string;
-    } | null;
-  } | null;
-};
-
-type ActiveMemberRow = {
-  id: string;
-  name: string;
-  gender: "형제" | "자매";
-  departments: {
-    name: string;
-  } | null;
-};
-
-type StatCardProps = {
-  title: string;
-  value: string;
-  caption: string;
-  icon: React.ReactNode;
-  iconClassName?: string;
-  valueClassName?: string;
-  accentClassName?: string;
-};
-
-function StatCard({
-  title,
-  value,
-  caption,
-  icon,
-  iconClassName = "bg-blue-50 text-[#2563eb]",
-  valueClassName = "text-slate-950",
-  accentClassName = "text-slate-500",
-}: StatCardProps) {
-  return (
-    <article className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{title}</p>
-          <p className={["mt-2 text-3xl font-bold tracking-tight sm:text-4xl", valueClassName].join(" ")}>{value}</p>
-          <p className={["mt-2 text-xs font-semibold sm:text-sm", accentClassName].join(" ")}>{caption}</p>
-        </div>
-        <div className={["flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl", iconClassName].join(" ")}>
-          {icon}
-        </div>
-      </div>
-    </article>
-  );
-}
+import { canWrite, requireSession } from "@/lib/auth/session";
+import { loadGoogleCalendarEvents, type GoogleCalendarEvent } from "@/lib/google/calendar";
 
 function ActionCard({
   href,
@@ -99,88 +43,71 @@ function ActionCard({
   );
 }
 
+function getEventStart(event: GoogleCalendarEvent) {
+  return new Date(event.start.dateTime ?? `${event.start.date}T00:00:00`);
+}
+
+function formatEventDate(event: GoogleCalendarEvent, timeZone: string) {
+  const start = getEventStart(event);
+
+  if (Number.isNaN(start.getTime())) {
+    return "날짜 미정";
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    timeZone,
+  }).format(start);
+}
+
+function formatEventTime(event: GoogleCalendarEvent, timeZone: string) {
+  if (event.start.date) {
+    return "종일";
+  }
+
+  const start = new Date(event.start.dateTime ?? "");
+  const end = new Date(event.end.dateTime ?? "");
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "시간 미정";
+  }
+
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  });
+
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+
 export default async function DashboardPage() {
-  const session = await requireSession();
-  const { appUser } = session;
-  const supabase = createPageReadClient(appUser, session.supabase);
+  const { appUser } = await requireSession();
   const canManage = canWrite(appUser);
 
-  const [{ data: activeMembers }, { data: latestMeeting }, { data: recentNewcomers }] = await Promise.all([
-    supabase.from("members").select("id, name, gender, departments(name)").eq("is_active", true),
-    supabase
-      .from("meetings")
-      .select("id, meeting_date, title")
-      .order("meeting_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("newcomer_profiles")
-      .select("id, registered_at, members(id, name, departments(name))")
-      .order("registered_at", { ascending: false })
-      .limit(5),
-  ]);
+  let scheduleEvents: GoogleCalendarEvent[] = [];
+  let scheduleError: string | null = null;
+  let timeZone = "Asia/Seoul";
 
-  const normalizedActiveMembers = (activeMembers as ActiveMemberRow[] | null) ?? [];
-  const totalActiveMembers = normalizedActiveMembers.length;
-
-  const latestRecordsResponse = latestMeeting?.id
-    ? await supabase
-        .from("attendance_records")
-        .select("status")
-        .eq("meeting_id", latestMeeting.id)
-        .in("status", ["정상출석", "지각", "행사"])
-    : { data: [] as Array<{ status: string }> };
-
-  const latestAttendanceRate =
-    latestMeeting?.id && totalActiveMembers > 0
-      ? (((latestRecordsResponse.data?.length ?? 0) / totalActiveMembers) * 100)
-      : 0;
+  try {
+    const calendar = await loadGoogleCalendarEvents({
+      daysBack: 0,
+      daysAhead: 45,
+      maxResults: 8,
+    });
+    timeZone = calendar.summary?.timeZone ?? timeZone;
+    scheduleEvents = calendar.events.filter((event) => event.status !== "cancelled");
+  } catch (error) {
+    scheduleError = error instanceof Error ? error.message : "청년회 일정을 불러오지 못했습니다.";
+  }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-10">
-      <section className="space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">대시보드</h2>
-        <p className="max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">운영 핵심 지표를 한눈에 확인합니다.</p>
-      </section>
-
-      <section className="grid gap-6 md:grid-cols-3">
-        <StatCard
-          title="전체 활성 형제/자매 수"
-          value={`${totalActiveMembers}명`}
-          caption="현재 활성 상태 기준"
-          icon={<Icon name="members" className="h-8 w-8" />}
-          iconClassName="bg-blue-50 text-[#2563eb]"
-        />
-
-        <article className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">최근 모임 출석률</p>
-            <span className="text-xl font-bold tracking-tight text-[#2563eb] sm:text-2xl">{latestAttendanceRate.toFixed(1)}%</span>
-          </div>
-          <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-[#2563eb] transition-[width] duration-500"
-              style={{ width: `${Math.min(latestAttendanceRate, 100)}%` }}
-            />
-          </div>
-          <p className="text-sm leading-6 text-slate-500 sm:text-base">
-            {latestMeeting ? `${latestMeeting.title} · ${formatDate(latestMeeting.meeting_date)}` : "최근 모임 없음"}
-          </p>
-        </article>
-
-        <StatCard
-          title="최근 등록 새가족"
-          value={`${recentNewcomers?.length ?? 0}명`}
-          caption="최근 5건 기준"
-          icon={<Icon name="plus-user" className="h-8 w-8" />}
-          iconClassName="bg-amber-50 text-[#f59e0b]"
-          accentClassName="text-blue-600"
-        />
-      </section>
-
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-semibold tracking-tight text-slate-950">Quick Actions</h3>
+          <h2 className="text-xl font-semibold tracking-tight text-slate-950">Quick Actions</h2>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -203,62 +130,43 @@ export default async function DashboardPage() {
             icon={<Icon name="reports" className="h-5 w-5" />}
           />
           <ActionCard
-            href="/newcomers"
-            title={canManage ? "새가족 등록" : "새가족 조회"}
-            description={canManage ? "첫 방문자를 빠르게 등록합니다." : "최근 새가족 현황을 확인합니다."}
-            icon={<Icon name="plus-user" className="h-5 w-5" filled />}
+            href="/calendar"
+            title="청년회 일정"
+            description="구글 캘린더에 등록된 일정을 확인합니다."
+            icon={<Icon name="events" className="h-5 w-5" />}
             highlighted
           />
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <h3 className="text-lg font-medium tracking-tight text-slate-950 sm:text-xl">최근 등록된 새가족</h3>
-            <Link href="/newcomers" className="text-sm font-semibold text-[#2563eb] transition hover:text-[#1d4ed8]">
-              View All
-            </Link>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
-              <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">
-                <tr>
-                  <th className="px-6 py-4">Member Name</th>
-                  <th className="px-6 py-4">Department</th>
-                  <th className="px-6 py-4 text-right">Date Joined</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {((recentNewcomers as RecentNewcomer[] | null) ?? []).map((profile) => {
-                  const name = profile.members?.name ?? "-";
-                  const department = profile.members?.departments?.name ?? "미지정";
-
-                  return (
-                    <tr key={profile.id} className="group transition-colors hover:bg-slate-50/70">
-                      <td className="px-6 py-5">
-                        <span className="text-sm font-medium text-slate-900 transition-colors group-hover:text-[#2563eb] sm:text-base">
-                          {name}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-sm text-slate-600">{department}</td>
-                      <td className="px-6 py-5 text-right text-sm text-slate-500">{formatDate(profile.registered_at)}</td>
-                    </tr>
-                  );
-                })}
-                {(recentNewcomers?.length ?? 0) === 0 ? (
-                  <tr>
-                    <td className="px-6 py-8 text-sm text-slate-500" colSpan={3}>
-                      데이터가 없습니다.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 className="text-xl font-semibold tracking-tight text-slate-950">청년회 일정</h2>
+          <Link href="/calendar" className="text-sm font-semibold text-[#2563eb] transition hover:text-[#1d4ed8]">
+            전체 보기
+          </Link>
         </div>
 
+        {scheduleError ? (
+          <div className="px-6 py-8 text-sm text-rose-600">{scheduleError}</div>
+        ) : scheduleEvents.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {scheduleEvents.map((event) => (
+              <article key={event.id} className="flex flex-col gap-2 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-slate-950">{event.summary}</p>
+                  {event.location ? <p className="mt-1 truncate text-sm text-slate-500">{event.location}</p> : null}
+                </div>
+                <div className="shrink-0 text-left text-sm font-medium text-slate-600 sm:text-right">
+                  <p>{formatEventDate(event, timeZone)}</p>
+                  <p className="text-xs text-slate-500">{formatEventTime(event, timeZone)}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="px-6 py-8 text-sm text-slate-500">표시할 청년회 일정이 없습니다.</div>
+        )}
       </section>
     </div>
   );

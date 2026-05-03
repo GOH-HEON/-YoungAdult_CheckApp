@@ -90,6 +90,24 @@ function formatEventDateLabel(event: GoogleCalendarEvent, timeZone: string) {
   }).format(date);
 }
 
+function getDateNumberClass(day: CalendarDayView, dayIndex: number) {
+  const weekendTextClass = dayIndex === 0 ? "text-rose-500" : dayIndex === 6 ? "text-[#1a73e8]" : "";
+
+  if (day.isSelected) {
+    return ["bg-[#e8f0fe] hover:bg-blue-100", weekendTextClass || "text-[#1a73e8]"].join(" ");
+  }
+
+  if (day.isToday) {
+    return ["bg-[#e8f0fe] hover:bg-blue-100", weekendTextClass || "text-[#1a73e8]"].join(" ");
+  }
+
+  if (weekendTextClass) {
+    return `${weekendTextClass} ${dayIndex === 0 ? "hover:bg-rose-50" : "hover:bg-blue-50"}`;
+  }
+
+  return day.inMonth ? "text-slate-700 hover:bg-slate-100" : "text-slate-400 hover:bg-slate-50";
+}
+
 export function GoogleCalendarBoard({
   monthKey,
   monthLabel,
@@ -191,15 +209,7 @@ export function GoogleCalendarBoard({
                           href={buildHref(monthKey, day.key)}
                           className={[
                             "inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-medium transition",
-                            day.isSelected
-                              ? "bg-[#1a73e8] text-white"
-                              : day.isToday
-                                ? "bg-[#e8f0fe] text-[#1a73e8]"
-                                : dayIndex === 0
-                                  ? "text-rose-500 hover:bg-rose-50"
-                                  : dayIndex === 6
-                                    ? "text-[#1a73e8] hover:bg-blue-50"
-                                    : "text-slate-700 hover:bg-slate-100",
+                            getDateNumberClass(day, dayIndex),
                           ].join(" ")}
                         >
                           {day.dayNumber}
