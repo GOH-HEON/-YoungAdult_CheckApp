@@ -83,6 +83,11 @@ function formatEventTime(event: GoogleCalendarEvent, timeZone: string) {
   return `${formatter.format(start)} - ${formatter.format(end)}`;
 }
 
+function isYouthEvent(event: GoogleCalendarEvent) {
+  const haystack = [event.summary, event.description, event.location].filter(Boolean).join(" ");
+  return haystack.includes("청년회") || haystack.includes("쳥년회");
+}
+
 export default async function DashboardPage() {
   const { appUser } = await requireSession();
   const canManage = canWrite(appUser);
@@ -95,10 +100,10 @@ export default async function DashboardPage() {
     const calendar = await loadGoogleCalendarEvents({
       daysBack: 0,
       daysAhead: 45,
-      maxResults: 8,
+      maxResults: 80,
     });
     timeZone = calendar.summary?.timeZone ?? timeZone;
-    scheduleEvents = calendar.events.filter((event) => event.status !== "cancelled");
+    scheduleEvents = calendar.events.filter((event) => event.status !== "cancelled" && isYouthEvent(event)).slice(0, 8);
   } catch (error) {
     scheduleError = error instanceof Error ? error.message : "청년회 일정을 불러오지 못했습니다.";
   }

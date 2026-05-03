@@ -91,21 +91,35 @@ function formatEventDateLabel(event: GoogleCalendarEvent, timeZone: string) {
 }
 
 function getDateNumberClass(day: CalendarDayView, dayIndex: number) {
-  const weekendTextClass = dayIndex === 0 ? "text-rose-500" : dayIndex === 6 ? "text-[#1a73e8]" : "";
-
   if (day.isSelected) {
-    return ["bg-[#e8f0fe] hover:bg-blue-100", weekendTextClass || "text-[#1a73e8]"].join(" ");
+    return "bg-[#e8f0fe] hover:bg-blue-100";
   }
 
   if (day.isToday) {
-    return ["bg-[#e8f0fe] hover:bg-blue-100", weekendTextClass || "text-[#1a73e8]"].join(" ");
+    return "bg-[#e8f0fe] hover:bg-blue-100";
   }
 
-  if (weekendTextClass) {
-    return `${weekendTextClass} ${dayIndex === 0 ? "hover:bg-rose-50" : "hover:bg-blue-50"}`;
+  if (dayIndex === 0) {
+    return "hover:bg-rose-50";
   }
 
-  return day.inMonth ? "text-slate-700 hover:bg-slate-100" : "text-slate-400 hover:bg-slate-50";
+  if (dayIndex === 6) {
+    return "hover:bg-blue-50";
+  }
+
+  return day.inMonth ? "hover:bg-slate-100" : "hover:bg-slate-50";
+}
+
+function getDateNumberColor(day: CalendarDayView, dayIndex: number) {
+  if (dayIndex === 0) {
+    return "#f43f5e";
+  }
+
+  if (dayIndex === 6) {
+    return "#1a73e8";
+  }
+
+  return day.inMonth ? "#334155" : "#94a3b8";
 }
 
 export function GoogleCalendarBoard({
@@ -211,6 +225,7 @@ export function GoogleCalendarBoard({
                             "inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-medium transition",
                             getDateNumberClass(day, dayIndex),
                           ].join(" ")}
+                          style={{ color: getDateNumberColor(day, dayIndex) }}
                         >
                           {day.dayNumber}
                         </Link>
