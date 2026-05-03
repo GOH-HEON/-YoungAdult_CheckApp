@@ -9,7 +9,7 @@ import { Icon } from "@/components/ui/icon";
 type NavChild = {
   href: string;
   label: string;
-  icon: "members" | "newcomer" | "plus-user" | "attendance" | "view-attendance";
+  icon: "members" | "newcomer" | "plus-user" | "attendance" | "view-attendance" | "reports";
   requiresWrite?: boolean;
 };
 
@@ -39,6 +39,7 @@ const navEntries: NavEntry[] = [
     children: [
       { href: "/attendance/check", label: "출석체크", icon: "attendance", requiresWrite: true },
       { href: "/attendance/view", label: "출석조회", icon: "view-attendance" },
+      { href: "/attendance/print", label: "출석부 인쇄", icon: "reports" },
     ],
   },
   { href: "/reports", label: "리포트", icon: "reports" },
