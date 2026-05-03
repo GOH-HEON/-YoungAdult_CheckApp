@@ -113,6 +113,10 @@ function finalizeSummary(summary: GroupSummary) {
   };
 }
 
+function getAttendanceTotal(summary: GroupSummary) {
+  return summary.정상출석 + summary.지각 + summary.행사;
+}
+
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const { from: fromDate, to: toDate } = normalizeDateRange({
@@ -487,6 +491,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">지각</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">결석</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">행사</th>
+                  <th className="sticky top-0 bg-slate-100 px-3 py-2">출석 총합</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">미기록</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">출석률</th>
                 </tr>
@@ -501,6 +506,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     <td className="px-3 py-2">{item.지각}</td>
                     <td className="px-3 py-2">{item.결석}</td>
                     <td className="px-3 py-2">{item.행사}</td>
+                    <td className="px-3 py-2 font-semibold text-[#2563eb]">{getAttendanceTotal(item)}</td>
                     <td className="px-3 py-2">{item.미기록}</td>
                     <td className="px-3 py-2">{item.attendanceRate}%</td>
                   </tr>
@@ -528,6 +534,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">지각</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">결석</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">행사</th>
+                  <th className="sticky top-0 bg-slate-100 px-3 py-2">출석 총합</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">미기록</th>
                   <th className="sticky top-0 bg-slate-100 px-3 py-2">출석률</th>
                 </tr>
@@ -542,6 +549,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     <td className="px-3 py-2">{item.지각}</td>
                     <td className="px-3 py-2">{item.결석}</td>
                     <td className="px-3 py-2">{item.행사}</td>
+                    <td className="px-3 py-2 font-semibold text-[#2563eb]">{getAttendanceTotal(item)}</td>
                     <td className="px-3 py-2">{item.미기록}</td>
                     <td className="px-3 py-2">{item.attendanceRate}%</td>
                   </tr>

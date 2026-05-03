@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 import { Icon } from "@/components/ui/icon";
 
@@ -65,6 +66,7 @@ function getTopMenuClass(active: boolean) {
 
 export function AdminNav({ canWrite }: { canWrite: boolean }) {
   const pathname = usePathname();
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const visibleEntries = navEntries.filter((entry) => !entry.requiresWrite || canWrite);
 
   return (
@@ -77,17 +79,28 @@ export function AdminNav({ canWrite }: { canWrite: boolean }) {
 
         if (children.length > 0) {
           return (
-            <div key={entry.label} className="group relative shrink-0 py-2">
+            <div
+              key={entry.label}
+              className="relative shrink-0 py-2"
+              onMouseEnter={() => setOpenMenu(entry.label)}
+              onMouseLeave={() => setOpenMenu(null)}
+            >
               <button
                 type="button"
                 className={getTopMenuClass(active)}
+                onClick={() => setOpenMenu((current) => (current === entry.label ? null : entry.label))}
               >
                 <Icon name={entry.icon} className="h-4 w-4" filled={active && entry.icon === "dashboard"} />
                 <span>{entry.label}</span>
                 <span className="text-xs font-semibold leading-none opacity-70">▾</span>
               </button>
 
-              <div className="invisible absolute left-0 top-full z-40 min-w-56 rounded-xl border border-slate-200 bg-white p-2 opacity-0 shadow-[0_18px_45px_-18px_rgba(15,23,42,0.35)] transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+              <div
+                className={[
+                  "absolute left-0 top-full z-40 min-w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-[0_18px_45px_-18px_rgba(15,23,42,0.35)] transition",
+                  openMenu === entry.label ? "visible opacity-100" : "invisible opacity-0",
+                ].join(" ")}
+              >
                 {children.map((child) => {
                   const childActive = isActivePath(pathname, child.href);
 
@@ -95,6 +108,7 @@ export function AdminNav({ canWrite }: { canWrite: boolean }) {
                     <Link
                       key={child.href}
                       href={child.href}
+                      onClick={() => setOpenMenu(null)}
                       className={[
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
                         childActive

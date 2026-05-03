@@ -1,8 +1,42 @@
 import Link from "next/link";
 
 import { Icon } from "@/components/ui/icon";
-import { canWrite, requireSession } from "@/lib/auth/session";
+import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
 import { loadGoogleCalendarEvents, type GoogleCalendarEvent } from "@/lib/google/calendar";
+import { compareDepartmentName } from "@/lib/utils/department-order";
+import { formatDate } from "@/lib/utils/format";
+
+type MeetingRow = {
+  id: string;
+  meeting_date: string;
+  title: string;
+  meeting_types: {
+    name: string;
+  } | null;
+};
+
+type ActiveMemberRow = {
+  id: string;
+  gender: "형제" | "자매";
+  departments: {
+    name: string;
+  } | null;
+};
+
+type AttendanceRecordRow = {
+  member_id: string;
+  status: "정상출석" | "지각" | "결석" | "행사";
+};
+
+type AttendanceSummary = {
+  groupName: string;
+  memberCount: number;
+  정상출석: number;
+  지각: number;
+  행사: number;
+  결석: number;
+  출석총합: number;
+};
 
 function ActionCard({
   href,
@@ -88,13 +122,42 @@ function isYouthEvent(event: GoogleCalendarEvent) {
   return haystack.includes("청년회") || haystack.includes("쳥년회");
 }
 
+function isYouthMeeting(meeting: MeetingRow) {
+  const haystack = [meeting.title, meeting.meeting_types?.name].filter(Boolean).join(" ");
+  return haystack.includes("청년회") || haystack.includes("쳥년회");
+}
+
+function createAttendanceSummary(groupName: string, memberCount: number): AttendanceSummary {
+  return {
+    groupName,
+    memberCount,
+    정상출석: 0,
+    지각: 0,
+    행사: 0,
+    결석: 0,
+    출석총합: 0,
+  };
+}
+
+function finalizeAttendanceSummary(summary: AttendanceSummary) {
+  return {
+    ...summary,
+    출석총합: summary.정상출석 + summary.지각 + summary.행사,
+  };
+}
+
 export default async function DashboardPage() {
-  const { appUser } = await requireSession();
+  const session = await requireSession();
+  const { appUser } = session;
+  const supabase = createPageReadClient(appUser, session.supabase);
   const canManage = canWrite(appUser);
 
   let scheduleEvents: GoogleCalendarEvent[] = [];
   let scheduleError: string | null = null;
   let timeZone = "Asia/Seoul";
+  let latestYouthMeeting: MeetingRow | null = null;
+  let departmentAttendanceSummary: AttendanceSummary[] = [];
+  let genderAttendanceSummary: AttendanceSummary[] = [];
 
   try {
     const calendar = await loadGoogleCalendarEvents({
@@ -106,6 +169,76 @@ export default async function DashboardPage() {
     scheduleEvents = calendar.events.filter((event) => event.status !== "cancelled" && isYouthEvent(event)).slice(0, 8);
   } catch (error) {
     scheduleError = error instanceof Error ? error.message : "청년회 일정을 불러오지 못했습니다.";
+  }
+
+  const [{ data: activeMembers }, { data: recentMeetings }] = await Promise.all([
+    supabase.from("members").select("id, gender, departments(name)").eq("is_active", true),
+    supabase
+      .from("meetings")
+      .select("id, meeting_date, title, meeting_types(name)")
+      .order("meeting_date", { ascending: false })
+      .limit(20),
+  ]);
+
+  const memberRows = (activeMembers as ActiveMemberRow[] | null) ?? [];
+  const meetingRows = (recentMeetings as MeetingRow[] | null) ?? [];
+  latestYouthMeeting = meetingRows.find(isYouthMeeting) ?? null;
+
+  if (latestYouthMeeting) {
+    const { data: attendanceRecords } = await supabase
+      .from("attendance_records")
+      .select("member_id, status")
+      .eq("meeting_id", latestYouthMeeting.id);
+    const records = (attendanceRecords as AttendanceRecordRow[] | null) ?? [];
+    const memberById = new Map(memberRows.map((member) => [member.id, member]));
+
+    const departmentCount = new Map<string, number>();
+    const genderCount = new Map<"형제" | "자매", number>([
+      ["형제", 0],
+      ["자매", 0],
+    ]);
+
+    memberRows.forEach((member) => {
+      const departmentName = member.departments?.name ?? "미지정";
+      departmentCount.set(departmentName, (departmentCount.get(departmentName) ?? 0) + 1);
+      genderCount.set(member.gender, (genderCount.get(member.gender) ?? 0) + 1);
+    });
+
+    const departmentSummary = new Map<string, AttendanceSummary>();
+    Array.from(departmentCount.entries()).forEach(([departmentName, memberCount]) => {
+      departmentSummary.set(departmentName, createAttendanceSummary(departmentName, memberCount));
+    });
+
+    const genderSummary = new Map<"형제" | "자매", AttendanceSummary>([
+      ["형제", createAttendanceSummary("형제", genderCount.get("형제") ?? 0)],
+      ["자매", createAttendanceSummary("자매", genderCount.get("자매") ?? 0)],
+    ]);
+
+    records.forEach((record) => {
+      const member = memberById.get(record.member_id);
+      if (!member) {
+        return;
+      }
+
+      const departmentName = member.departments?.name ?? "미지정";
+      const departmentItem = departmentSummary.get(departmentName);
+      if (departmentItem) {
+        departmentItem[record.status] += 1;
+      }
+
+      const genderItem = genderSummary.get(member.gender);
+      if (genderItem) {
+        genderItem[record.status] += 1;
+      }
+    });
+
+    departmentAttendanceSummary = Array.from(departmentSummary.values())
+      .map(finalizeAttendanceSummary)
+      .sort((a, b) => compareDepartmentName(a.groupName, b.groupName));
+    genderAttendanceSummary = (["형제", "자매"] as const)
+      .map((gender) => genderSummary.get(gender))
+      .filter((summary): summary is AttendanceSummary => Boolean(summary))
+      .map(finalizeAttendanceSummary);
   }
 
   return (
@@ -145,6 +278,31 @@ export default async function DashboardPage() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
+        <div className="flex flex-col gap-1 border-b border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-slate-950">최근 청년회 출석정보</h2>
+            <p className="text-sm text-slate-500">
+              {latestYouthMeeting
+                ? `${latestYouthMeeting.title} · ${formatDate(latestYouthMeeting.meeting_date)}`
+                : "최근 청년회 모임 기록이 없습니다."}
+            </p>
+          </div>
+          <Link href="/reports" className="text-sm font-semibold text-[#2563eb] transition hover:text-[#1d4ed8]">
+            리포트 보기
+          </Link>
+        </div>
+
+        {latestYouthMeeting ? (
+          <div className="grid gap-0 lg:grid-cols-2">
+            <AttendanceSummaryTable title="부서별" rows={departmentAttendanceSummary} />
+            <AttendanceSummaryTable title="형제/자매별" rows={genderAttendanceSummary} />
+          </div>
+        ) : (
+          <div className="px-6 py-8 text-sm text-slate-500">표시할 출석정보가 없습니다.</div>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.05)]">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 className="text-xl font-semibold tracking-tight text-slate-950">청년회 일정</h2>
           <Link href="/calendar" className="text-sm font-semibold text-[#2563eb] transition hover:text-[#1d4ed8]">
@@ -173,6 +331,43 @@ export default async function DashboardPage() {
           <div className="px-6 py-8 text-sm text-slate-500">표시할 청년회 일정이 없습니다.</div>
         )}
       </section>
+    </div>
+  );
+}
+
+function AttendanceSummaryTable({ title, rows }: { title: string; rows: AttendanceSummary[] }) {
+  return (
+    <div className="border-b border-slate-100 p-6 lg:border-b-0 lg:border-r lg:last:border-r-0">
+      <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+      <div className="mt-3 overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead className="text-xs font-semibold text-slate-500">
+            <tr>
+              <th className="px-2 py-2">구분</th>
+              <th className="px-2 py-2">인원</th>
+              <th className="px-2 py-2">정상</th>
+              <th className="px-2 py-2">지각</th>
+              <th className="px-2 py-2">행사</th>
+              <th className="px-2 py-2">결석</th>
+              <th className="px-2 py-2">출석 총합</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map((row) => (
+              <tr key={row.groupName}>
+                <td className="px-2 py-2 font-medium text-slate-950">{row.groupName}</td>
+                <td className="px-2 py-2 text-slate-600">{row.memberCount}</td>
+                <td className="px-2 py-2 text-slate-600">{row.정상출석}</td>
+                <td className="px-2 py-2 text-slate-600">{row.지각}</td>
+                <td className="px-2 py-2 text-slate-600">{row.행사}</td>
+                <td className="px-2 py-2 text-slate-600">{row.결석}</td>
+                <td className="px-2 py-2 font-semibold text-[#2563eb]">{row.출석총합}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length === 0 ? <p className="mt-3 text-sm text-slate-500">데이터가 없습니다.</p> : null}
     </div>
   );
 }
