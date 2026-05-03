@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AdminNav } from "@/components/layout/admin-nav";
 import { Icon } from "@/components/ui/icon";
 import { signOutAction } from "@/lib/auth/actions";
@@ -46,6 +48,12 @@ export function AdminShell({
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">
                 {initials}
               </div>
+              <Link
+                href="/account/password"
+                className="rounded-lg px-2 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                비밀번호
+              </Link>
               <form action={signOutAction}>
                 <button
                   type="submit"
@@ -70,15 +78,23 @@ export function AdminShell({
             <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-slate-800 text-xs font-bold text-white shadow-sm">
               {initials}
             </div>
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98]"
-                aria-label="로그아웃"
+            <div className="flex flex-col items-stretch gap-1">
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98]"
+                >
+                  <Icon name="logout" className="h-5 w-5" />
+                  Log Out
+                </button>
+              </form>
+              <Link
+                href="/account/password"
+                className="rounded-lg px-3 py-1.5 text-center text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
               >
-                <Icon name="logout" className="h-5 w-5" />
-              </button>
-            </form>
+                비밀번호 변경
+              </Link>
+            </div>
           </div>
         </div>
       </header>
