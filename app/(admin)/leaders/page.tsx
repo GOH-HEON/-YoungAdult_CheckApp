@@ -333,10 +333,11 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
             <Link
               href={`/leaders?date=${formatDateInputValue()}`}
               className={[
-                "rounded-xl border px-4 py-3 text-sm font-bold transition active:translate-y-[1px] active:scale-[0.98]",
+                "inline-flex min-w-[112px] items-center justify-center rounded-xl border border-slate-950 bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-sm transition",
+                "hover:bg-slate-900 hover:shadow-md active:translate-y-[1px] active:scale-[0.98]",
                 selectedDate === formatDateInputValue()
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
+                  ? "ring-2 ring-slate-950/10"
+                  : "",
               ].join(" ")}
             >
               새 기록
@@ -395,7 +396,10 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
                     className="rounded-lg border border-slate-300 px-3 py-2"
                   />
                 </label>
-                <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                <button
+                  type="submit"
+                  className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 active:translate-y-[1px] active:scale-[0.98]"
+                >
                   불러오기
                 </button>
               </form>
