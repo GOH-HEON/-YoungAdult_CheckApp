@@ -12,6 +12,7 @@ type NavChild = {
   icon: "members" | "newcomer" | "plus-user" | "attendance" | "view-attendance" | "reports" | "events";
   requiresWrite?: boolean;
   requiresChairboard?: boolean;
+  requiresPersonalNotes?: boolean;
 };
 
 type NavEntry = {
@@ -49,6 +50,7 @@ const navEntries: NavEntry[] = [
     children: [
       { href: "/leaders", label: "임원모임 기록", icon: "events" },
       { href: "/chairboard", label: "회장단 메모", icon: "events", requiresChairboard: true },
+      { href: "/personal-notes", label: "기타 메모", icon: "events", requiresPersonalNotes: true },
     ],
   },
   { href: "/reports", label: "리포트", icon: "reports" },
@@ -63,13 +65,22 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function getVisibleChildren(children: NavChild[] | undefined, canWrite: boolean, canAccessChairboard: boolean) {
+function getVisibleChildren(
+  children: NavChild[] | undefined,
+  canWrite: boolean,
+  canAccessChairboard: boolean,
+  canAccessPersonalNotes: boolean,
+) {
   return (children ?? []).filter((child) => {
     if (child.requiresWrite && !canWrite) {
       return false;
     }
 
     if (child.requiresChairboard && !canAccessChairboard) {
+      return false;
+    }
+
+    if (child.requiresPersonalNotes && !canAccessPersonalNotes) {
       return false;
     }
 
@@ -87,9 +98,11 @@ function getTopMenuClass(active: boolean) {
 export function AdminNav({
   canWrite,
   canAccessChairboard,
+  canAccessPersonalNotes,
 }: {
   canWrite: boolean;
   canAccessChairboard: boolean;
+  canAccessPersonalNotes: boolean;
 }) {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -98,7 +111,7 @@ export function AdminNav({
   return (
     <nav aria-label="관리자 메뉴" className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
       {visibleEntries.map((entry) => {
-        const children = getVisibleChildren(entry.children, canWrite, canAccessChairboard);
+        const children = getVisibleChildren(entry.children, canWrite, canAccessChairboard, canAccessPersonalNotes);
         const active = entry.href
           ? isActivePath(pathname, entry.href)
           : children.some((child) => isActivePath(pathname, child.href));

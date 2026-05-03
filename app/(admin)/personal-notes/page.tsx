@@ -1,12 +1,17 @@
 import Link from "next/link";
 
+import { deletePersonalNoteAction, savePersonalNoteAction } from "@/app/(admin)/personal-notes/actions";
 import { ChairboardEditor } from "@/components/chairboard/chairboard-editor";
 import { PageTitle } from "@/components/ui/page-title";
-import { canWrite, requireChairboardSession } from "@/lib/auth/session";
-import { PERSONAL_NOTE_TITLE_PREFIX } from "@/lib/notes/personal-notes";
+import { requirePersonalNotesSession } from "@/lib/auth/session";
+import {
+  PERSONAL_NOTE_DEFAULT_TITLE,
+  PERSONAL_NOTE_TITLE_PREFIX,
+  stripPersonalNotePrefix,
+} from "@/lib/notes/personal-notes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-type ChairboardPageProps = {
+type PersonalNotesPageProps = {
   searchParams: Promise<{
     level?: "ok" | "error";
     message?: string;
@@ -15,7 +20,7 @@ type ChairboardPageProps = {
   }>;
 };
 
-type ChairboardNoteRow = {
+type PersonalNoteRow = {
   id: string;
   title: string;
   content_html: string;
@@ -42,7 +47,7 @@ function formatUpdatedAt(value: string | null | undefined) {
   }).format(date)}`;
 }
 
-function formatNoteStamp(note: ChairboardNoteRow) {
+function formatNoteStamp(note: PersonalNoteRow) {
   const source = note.updated_at ?? note.created_at;
   const date = new Date(source);
 
@@ -69,39 +74,36 @@ function stripHtmlPreview(html: string) {
     return "내용 없음";
   }
 
-  return text.length > 56 ? `${text.slice(0, 56)}…` : text;
+  return text.length > 56 ? `${text.slice(0, 56)}...` : text;
 }
 
-export default async function ChairboardPage({ searchParams }: ChairboardPageProps) {
+export default async function PersonalNotesPage({ searchParams }: PersonalNotesPageProps) {
   const params = await searchParams;
-  const { supabase, appUser } = await requireChairboardSession();
-  const chairboardSupabase = canWrite(appUser) ? createSupabaseAdminClient() : supabase;
+  const { user } = await requirePersonalNotesSession();
+  const supabase = createSupabaseAdminClient();
 
-  const { data, error } = await chairboardSupabase
+  const { data, error } = await supabase
     .from("chairboard_notes")
     .select("id, title, content_html, created_at, updated_at")
-    .not("title", "like", `${PERSONAL_NOTE_TITLE_PREFIX}%`)
+    .eq("created_by", user.id)
+    .like("title", `${PERSONAL_NOTE_TITLE_PREFIX}%`)
     .order("updated_at", { ascending: false })
     .limit(20);
 
-  const chairboardNotes = (data as ChairboardNoteRow[] | null) ?? [];
+  const notes = (data as PersonalNoteRow[] | null) ?? [];
   const isDraft = params.new === "1";
   const requestedNoteId = params.noteId?.trim() ?? "";
-  const selectedNote = isDraft
-    ? null
-    : chairboardNotes.find((note) => note.id === requestedNoteId) ?? chairboardNotes[0] ?? null;
-  const selectedNoteLabel = isDraft ? "새 메모" : selectedNote?.title ?? "회장단 임원모임 메모";
+  const selectedNote = isDraft ? null : notes.find((note) => note.id === requestedNoteId) ?? notes[0] ?? null;
+  const selectedTitle = selectedNote ? stripPersonalNotePrefix(selectedNote.title) : PERSONAL_NOTE_DEFAULT_TITLE;
   const selectedContentHtml = isDraft ? "<p><br/></p>" : selectedNote?.content_html ?? "<p><br/></p>";
-  const updatedAtLabel = isDraft
-    ? "새 메모를 시작합니다."
-    : formatUpdatedAt(selectedNote?.updated_at);
+  const updatedAtLabel = isDraft ? "새 메모를 시작합니다." : formatUpdatedAt(selectedNote?.updated_at);
   const editorKey = `${selectedNote?.id ?? "draft"}:${selectedNote?.updated_at ?? "new"}:${isDraft ? "draft" : "saved"}`;
 
   return (
     <div className="space-y-6">
       <PageTitle
-        title="회장단 임원모임 정리"
-        description="회장단 전용 무지 캔버스입니다. 왼쪽에서 저장된 메모를 다시 열어볼 수 있습니다."
+        title="기타 메모"
+        description="고헌 계정 전용 개인 메모입니다. 회장단 메모와 같은 편집기를 사용하되, 이 페이지의 메모는 본인만 볼 수 있습니다."
       />
 
       {params.message ? (
@@ -127,11 +129,11 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
         <aside className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-900">저장된 메모</p>
-              <p className="text-xs text-slate-500">{chairboardNotes.length}개</p>
+              <p className="text-sm font-semibold text-slate-900">저장된 기타 메모</p>
+              <p className="text-xs text-slate-500">{notes.length}개</p>
             </div>
             <Link
-              href="/chairboard?new=1"
+              href="/personal-notes?new=1"
               className={[
                 "rounded-lg px-3 py-2 text-xs font-semibold transition",
                 isDraft
@@ -144,18 +146,18 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
           </div>
 
           <div className="space-y-2">
-            {chairboardNotes.length === 0 ? (
+            {notes.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                 아직 저장된 메모가 없습니다.
               </div>
             ) : (
-              chairboardNotes.map((note) => {
+              notes.map((note) => {
                 const active = !isDraft && selectedNote?.id === note.id;
 
                 return (
                   <Link
                     key={note.id}
-                    href={`/chairboard?noteId=${note.id}`}
+                    href={`/personal-notes?noteId=${note.id}`}
                     className={[
                       "block rounded-xl border px-4 py-3 transition",
                       active
@@ -165,7 +167,7 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{note.title}</p>
+                        <p className="truncate text-sm font-semibold">{stripPersonalNotePrefix(note.title)}</p>
                         <p className="mt-1 max-h-[2.8rem] overflow-hidden text-xs leading-5 text-slate-500">
                           {stripHtmlPreview(note.content_html)}
                         </p>
@@ -183,17 +185,22 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
 
         <div className="space-y-3">
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)]">
-            <span className="font-semibold text-slate-900">{selectedNoteLabel}</span>
+            <span className="font-semibold text-slate-900">{selectedTitle}</span>
             <span className="ml-2">{updatedAtLabel}</span>
           </div>
 
           <ChairboardEditor
             key={editorKey}
             noteId={selectedNote?.id ?? null}
-            title={selectedNote?.title ?? "회장단 임원모임 메모"}
+            title={selectedTitle}
             contentHtml={selectedContentHtml}
             updatedAtLabel={updatedAtLabel}
             initialEditing={false}
+            saveAction={savePersonalNoteAction}
+            deleteAction={deletePersonalNoteAction}
+            footerText="고헌 계정 전용 개인 메모입니다."
+            saveButtonKey="personal-save"
+            editButtonKey="personal-edit"
           />
         </div>
       </div>

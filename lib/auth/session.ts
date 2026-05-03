@@ -45,6 +45,21 @@ export function canAccessChairboard(appUser: AppUserRow | null) {
   return Boolean(appUser && appUser.is_active && canAccessChairboardByRole(appUser.role));
 }
 
+function getNormalizedEmailLocalPart(email: string | null | undefined) {
+  return (email?.split("@")[0] ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export function canAccessPersonalNotes(appUser: AppUserRow | null, email: string | null | undefined) {
+  if (!appUser?.is_active) {
+    return false;
+  }
+
+  const name = appUser.name?.trim() ?? "";
+  const emailLocalPart = getNormalizedEmailLocalPart(email);
+
+  return name.includes("고헌") || emailLocalPart.includes("goheon") || emailLocalPart.includes("gohheon");
+}
+
 async function readAppUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   userId: string,
@@ -129,6 +144,16 @@ export async function requireChairboardSession(): Promise<SessionContext> {
 
   if (!canAccessChairboard(session.appUser)) {
     redirect("/dashboard?level=error&message=회장단 전용 페이지입니다.");
+  }
+
+  return session;
+}
+
+export async function requirePersonalNotesSession(): Promise<SessionContext> {
+  const session = await requireSession();
+
+  if (!canAccessPersonalNotes(session.appUser, session.user.email)) {
+    redirect("/dashboard?level=error&message=개인 메모 전용 페이지입니다.");
   }
 
   return session;

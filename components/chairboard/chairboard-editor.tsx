@@ -21,6 +21,11 @@ type ChairboardEditorProps = {
   contentHtml: string;
   updatedAtLabel: string;
   initialEditing?: boolean;
+  saveAction?: ComponentProps<"form">["action"];
+  deleteAction?: ComponentProps<"button">["formAction"];
+  footerText?: string;
+  saveButtonKey?: string;
+  editButtonKey?: string;
 };
 
 function ToolbarButton({
@@ -93,6 +98,11 @@ export function ChairboardEditor({
   contentHtml,
   updatedAtLabel,
   initialEditing = false,
+  saveAction = saveChairboardNoteAction,
+  deleteAction = deleteChairboardNoteAction,
+  footerText = "회장단 전용 문서입니다.",
+  saveButtonKey = "chairboard-save",
+  editButtonKey = "chairboard-edit",
 }: ChairboardEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const contentInputRef = useRef<HTMLInputElement>(null);
@@ -134,7 +144,7 @@ export function ChairboardEditor({
 
   return (
     <form
-      action={saveChairboardNoteAction}
+      action={saveAction}
       onSubmit={syncContentField}
       className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)] sm:p-6"
     >
@@ -214,14 +224,14 @@ export function ChairboardEditor({
       />
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">회장단 전용 문서입니다.</p>
+        <p className="text-xs text-slate-500">{footerText}</p>
         <div className="flex items-center gap-2">
           {noteId ? (
             <ActionButton
               label="삭제"
               variant="danger"
               type="submit"
-              formAction={deleteChairboardNoteAction}
+              formAction={deleteAction}
               onClick={(event) => {
                 if (!window.confirm("이 메모를 삭제할까요? 삭제 후 복구할 수 없습니다.")) {
                   event.preventDefault();
@@ -231,10 +241,10 @@ export function ChairboardEditor({
           ) : null}
 
           {isEditing ? (
-            <ActionButton key="chairboard-save" label="저장" variant="primary" type="submit" />
+            <ActionButton key={saveButtonKey} label="저장" variant="primary" type="submit" />
           ) : (
             <ActionButton
-              key="chairboard-edit"
+              key={editButtonKey}
               label="수정"
               variant="secondary"
               type="button"
