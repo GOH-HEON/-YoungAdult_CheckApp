@@ -231,12 +231,16 @@ export function ChairboardEditor({
           ) : null}
 
           {isEditing ? (
-            <ActionButton label="저장" variant="primary" type="submit" />
+            <ActionButton key="chairboard-save" label="저장" variant="primary" type="submit" />
           ) : (
             <ActionButton
+              key="chairboard-edit"
               label="수정"
               variant="secondary"
-              onClick={() => {
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 setIsEditing(true);
                 editorRef.current?.focus();
               }}
