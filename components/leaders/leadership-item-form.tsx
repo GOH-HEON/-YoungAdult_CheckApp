@@ -1,33 +1,42 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
-
-import { createLeadershipItemAction } from "@/app/(admin)/leaders/actions";
+import { useId, useMemo, useState, type FormEvent } from "react";
 import {
   LEADERSHIP_VISIT_STATUS_OPTIONS,
   type LeadershipNoteCategory,
+  type LeadershipVisitStatus,
 } from "@/lib/constants/domain";
 
-type DepartmentOption = {
+export type DepartmentOption = {
   id: number;
   name: string;
 };
 
-type MemberOption = {
+export type MemberOption = {
   id: string;
   name: string;
   departmentName: string | null;
 };
 
+export type LeadershipItemDraftInput = {
+  category: LeadershipNoteCategory;
+  departmentName: string;
+  memberName: string;
+  memberId: string;
+  content: string;
+  status: LeadershipVisitStatus | "";
+  dueDate: string;
+};
+
 type LeadershipItemFormProps = {
   category: LeadershipNoteCategory;
-  selectedDate: string;
   title: string;
   submitLabel?: string;
   placeholder: string;
   members: MemberOption[];
   departments: DepartmentOption[];
   canManage: boolean;
+  onAdd: (item: LeadershipItemDraftInput) => void;
 };
 
 function normalizeText(value: string) {
@@ -40,13 +49,13 @@ function createSafeId(value: string) {
 
 export function LeadershipItemForm({
   category,
-  selectedDate,
   title,
   submitLabel,
   placeholder,
   members,
   departments,
   canManage,
+  onAdd,
 }: LeadershipItemFormProps) {
   const baseId = useId();
   const categoryId = createSafeId(category);
@@ -115,6 +124,35 @@ export function LeadershipItemForm({
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const content = normalizeText(String(formData.get("content") ?? ""));
+    const statusValue = normalizeText(String(formData.get("status") ?? ""));
+    const status = LEADERSHIP_VISIT_STATUS_OPTIONS.includes(statusValue as LeadershipVisitStatus)
+      ? (statusValue as LeadershipVisitStatus)
+      : "";
+
+    if (!content) {
+      return;
+    }
+
+    onAdd({
+      category,
+      departmentName: normalizedDepartmentName,
+      memberName: normalizedMemberName,
+      memberId: matchedMember?.id ?? "",
+      content,
+      status: isVisitPlan ? status : "",
+      dueDate: normalizeText(String(formData.get("dueDate") ?? "")),
+    });
+
+    event.currentTarget.reset();
+    setDepartmentName("");
+    setMemberName("");
+  }
+
   if (!canManage) {
     return (
       <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-600">
@@ -124,11 +162,7 @@ export function LeadershipItemForm({
   }
 
   return (
-    <form action={createLeadershipItemAction} className="mt-4 space-y-3">
-      <input type="hidden" name="meetingDate" value={selectedDate} />
-      <input type="hidden" name="category" value={category} />
-      <input type="hidden" name="memberId" value={matchedMember?.id ?? ""} />
-
+    <form onSubmit={handleSubmit} className="mt-4 space-y-3">
       {allowsMemberSelect ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">

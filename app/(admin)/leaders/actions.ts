@@ -90,37 +90,34 @@ type MatchedMemberRow = {
   departments: { name: string } | Array<{ name: string }> | null;
 };
 
-export async function createLeadershipItemAction(formData: FormData) {
-  const meetingDate = cleanText(formData.get("meetingDate"));
-  const category = cleanText(formData.get("category"));
-  const memberId = cleanText(formData.get("memberId"));
-  const departmentName = cleanText(formData.get("departmentName"));
-  const memberName = cleanText(formData.get("memberName"));
-  const content = cleanText(formData.get("content"));
-  const statusValue = cleanText(formData.get("status"));
-  const dueDate = cleanText(formData.get("dueDate"));
+type LeadershipPayloadItem = {
+  id?: string | null;
+  category?: string | null;
+  departmentName?: string | null;
+  memberName?: string | null;
+  memberId?: string | null;
+  content?: string | null;
+  status?: string | null;
+  dueDate?: string | null;
+};
 
-  if (!meetingDate) {
-    redirectLeaders({
-      message: "회의 날짜를 먼저 선택해 주세요.",
-      level: "error",
-    });
-  }
+type LeadershipBatchPayload = {
+  newItems?: LeadershipPayloadItem[];
+  updatedItems?: LeadershipPayloadItem[];
+  deletedItemIds?: string[];
+};
+
+function validatePayloadItem(item: LeadershipPayloadItem, index: number) {
+  const category = cleanText(item.category ?? "");
+  const content = cleanText(item.content ?? "");
+  const statusValue = cleanText(item.status ?? "");
 
   if (!isLeadershipCategory(category)) {
-    redirectLeaders({
-      message: "안건 분류가 올바르지 않습니다.",
-      level: "error",
-      date: meetingDate,
-    });
+    throw new Error(`${index + 1}번 항목의 안건 분류가 올바르지 않습니다.`);
   }
 
   if (!content) {
-    redirectLeaders({
-      message: "기록 내용을 입력해 주세요.",
-      level: "error",
-      date: meetingDate,
-    });
+    throw new Error(`${index + 1}번 항목의 기록 내용을 입력해 주세요.`);
   }
 
   const normalizedStatus =
@@ -131,8 +128,103 @@ export async function createLeadershipItemAction(formData: FormData) {
       : null;
 
   if (category === "부서원 심방계획" && !normalizedStatus) {
+    throw new Error(`${index + 1}번 심방계획 항목의 진행 상태를 선택해 주세요.`);
+  }
+
+  return {
+    id: cleanText(item.id ?? "") || null,
+    category,
+    departmentName: cleanText(item.departmentName ?? "") || null,
+    memberName: cleanText(item.memberName ?? "") || null,
+    memberId: cleanText(item.memberId ?? "") || null,
+    content,
+    status: normalizedStatus,
+    dueDate: cleanText(item.dueDate ?? "") || null,
+  } as const;
+}
+
+async function resolveLeadershipMemberId({
+  memberId,
+  memberName,
+  departmentName,
+  supabase,
+}: {
+  memberId: string | null;
+  memberName: string | null;
+  departmentName: string | null;
+  supabase: LeadershipSupabase;
+}) {
+  if (memberId) {
+    return memberId;
+  }
+
+  if (!memberName) {
+    return null;
+  }
+
+  const { data: matchedMembers, error: memberMatchError } = await supabase
+    .from("members")
+    .select("id, departments(name)")
+    .eq("name", memberName)
+    .eq("is_active", true);
+
+  if (memberMatchError) {
+    throw new Error(`부서원 확인 실패: ${memberMatchError.message}`);
+  }
+
+  const narrowedMembers = ((matchedMembers as MatchedMemberRow[] | null) ?? []).filter((matchedMember) => {
+    if (!departmentName) {
+      return true;
+    }
+
+    const departmentValue = Array.isArray(matchedMember.departments)
+      ? matchedMember.departments[0]?.name ?? null
+      : matchedMember.departments?.name ?? null;
+
+    return departmentValue === departmentName;
+  });
+
+  return narrowedMembers.length === 1 ? (narrowedMembers[0]?.id ?? null) : null;
+}
+
+export async function saveLeadershipMeetingItemsAction(formData: FormData) {
+  const meetingDate = cleanText(formData.get("meetingDate"));
+  const payloadText = cleanText(formData.get("payload"));
+
+  if (!meetingDate) {
     redirectLeaders({
-      message: "심방계획 상태를 선택해 주세요.",
+      message: "회의 날짜를 먼저 선택해 주세요.",
+      level: "error",
+    });
+  }
+
+  let payload: LeadershipBatchPayload;
+
+  try {
+    payload = payloadText ? (JSON.parse(payloadText) as LeadershipBatchPayload) : {};
+  } catch {
+    redirectLeaders({
+      message: "저장할 항목 정보를 읽는 중 오류가 발생했습니다.",
+      level: "error",
+      date: meetingDate,
+    });
+  }
+
+  const newItems = (payload.newItems ?? []).map((item, index) => validatePayloadItem(item, index));
+  const updatedItems = (payload.updatedItems ?? []).map((item, index) => validatePayloadItem(item, index));
+  const deletedItemIds = (payload.deletedItemIds ?? []).map((itemId) => cleanText(itemId)).filter(Boolean);
+
+  if (updatedItems.some((item) => !item.id)) {
+    redirectLeaders({
+      message: "수정할 항목 정보를 확인해 주세요.",
+      level: "error",
+      date: meetingDate,
+    });
+  }
+
+  if (newItems.length === 0 && updatedItems.length === 0 && deletedItemIds.length === 0) {
+    redirectLeaders({
+      message: "저장할 변경 사항이 없습니다.",
       level: "error",
       date: meetingDate,
     });
@@ -141,60 +233,91 @@ export async function createLeadershipItemAction(formData: FormData) {
   const { supabase, user } = await requireAdminSession();
 
   try {
-    let resolvedMemberId = memberId || null;
+    const needsMeetingForMutation = newItems.length > 0 || updatedItems.length > 0;
+    const { data: existingMeeting, error: existingMeetingError } = await supabase
+      .from("leadership_meetings")
+      .select("id")
+      .eq("meeting_date", meetingDate)
+      .maybeSingle();
 
-    if (!resolvedMemberId && memberName) {
-      const { data: matchedMembers, error: memberMatchError } = await supabase
-        .from("members")
-        .select("id, departments(name)")
-        .eq("name", memberName)
-        .eq("is_active", true);
+    if (existingMeetingError) {
+      throw new Error(`임원모임 조회 실패: ${existingMeetingError.message}`);
+    }
 
-      if (memberMatchError) {
-        throw new Error(`부서원 확인 실패: ${memberMatchError.message}`);
-      }
+    const meetingId = needsMeetingForMutation
+      ? await findOrCreateLeadershipMeeting({
+          meetingDate,
+          userId: user.id,
+          supabase,
+        })
+      : existingMeeting?.id ?? null;
 
-      const narrowedMembers = ((matchedMembers as MatchedMemberRow[] | null) ?? []).filter((matchedMember) => {
-        if (!departmentName) {
-          return true;
-        }
+    if (!meetingId && (updatedItems.length > 0 || deletedItemIds.length > 0)) {
+      throw new Error("저장할 기존 회의 기록을 찾지 못했습니다.");
+    }
 
-        const departmentValue = Array.isArray(matchedMember.departments)
-          ? matchedMember.departments[0]?.name ?? null
-          : matchedMember.departments?.name ?? null;
-
-        return departmentValue === departmentName;
+    for (const item of newItems) {
+      const resolvedMemberId = await resolveLeadershipMemberId({
+        memberId: item.memberId,
+        memberName: item.memberName,
+        departmentName: item.departmentName,
+        supabase,
       });
 
-      if (narrowedMembers.length === 1) {
-        resolvedMemberId = narrowedMembers[0]?.id ?? null;
+      const { error } = await supabase.from("leadership_items").insert({
+        meeting_id: meetingId,
+        category: item.category,
+        member_id: resolvedMemberId,
+        department_name: item.departmentName,
+        member_name: item.memberName,
+        content: item.content,
+        status: item.status,
+        due_date: item.dueDate,
+        created_by: user.id,
+      });
+
+      if (error) {
+        throw new Error(`기록 저장 실패: ${error.message}`);
       }
     }
 
-    const meetingId = await findOrCreateLeadershipMeeting({
-      meetingDate,
-      userId: user.id,
-      supabase,
-    });
-
-    const { error } = await supabase.from("leadership_items").insert({
-      meeting_id: meetingId,
-      category,
-      member_id: resolvedMemberId,
-      department_name: departmentName || null,
-      member_name: memberName || null,
-      content,
-      status: normalizedStatus,
-      due_date: dueDate || null,
-      created_by: user.id,
-    });
-
-    if (error) {
-      redirectLeaders({
-        message: `기록 저장 실패: ${error.message}`,
-        level: "error",
-        date: meetingDate,
+    for (const item of updatedItems) {
+      const resolvedMemberId = await resolveLeadershipMemberId({
+        memberId: item.memberId,
+        memberName: item.memberName,
+        departmentName: item.departmentName,
+        supabase,
       });
+
+      const { error } = await supabase
+        .from("leadership_items")
+        .update({
+          category: item.category,
+          member_id: resolvedMemberId,
+          department_name: item.departmentName,
+          member_name: item.memberName,
+          content: item.content,
+          status: item.status,
+          due_date: item.dueDate,
+        })
+        .eq("id", item.id as string)
+        .eq("meeting_id", meetingId as string);
+
+      if (error) {
+        throw new Error(`기록 수정 실패: ${error.message}`);
+      }
+    }
+
+    if (deletedItemIds.length > 0) {
+      const { error } = await supabase
+        .from("leadership_items")
+        .delete()
+        .in("id", deletedItemIds)
+        .eq("meeting_id", meetingId as string);
+
+      if (error) {
+        throw new Error(`기록 삭제 실패: ${error.message}`);
+      }
     }
   } catch (error) {
     redirectLeaders({
@@ -206,80 +329,7 @@ export async function createLeadershipItemAction(formData: FormData) {
 
   revalidateLeaders();
   redirectLeaders({
-    message: `${category} 항목이 저장되었습니다.`,
+    message: `저장 완료: 추가 ${newItems.length}건, 수정 ${updatedItems.length}건, 삭제 ${deletedItemIds.length}건`,
     date: meetingDate,
-  });
-}
-
-export async function updateLeadershipVisitStatusAction(formData: FormData) {
-  const itemId = cleanText(formData.get("id"));
-  const meetingDate = cleanText(formData.get("meetingDate"));
-  const statusValue = cleanText(formData.get("status"));
-
-  if (!itemId || !meetingDate) {
-    redirectLeaders({
-      message: "상태 변경에 필요한 정보가 누락되었습니다.",
-      level: "error",
-      date: meetingDate || undefined,
-    });
-  }
-
-  if (!isLeadershipVisitStatus(statusValue)) {
-    redirectLeaders({
-      message: "심방 상태 값이 올바르지 않습니다.",
-      level: "error",
-      date: meetingDate,
-    });
-  }
-
-  const { supabase } = await requireAdminSession();
-  const { error } = await supabase
-    .from("leadership_items")
-    .update({ status: statusValue })
-    .eq("id", itemId)
-    .eq("category", "부서원 심방계획");
-
-  if (error) {
-    redirectLeaders({
-      message: `심방 상태 변경 실패: ${error.message}`,
-      level: "error",
-      date: meetingDate,
-    });
-  }
-
-  revalidateLeaders();
-  redirectLeaders({
-    message: `심방 상태가 ${statusValue}로 변경되었습니다.`,
-    date: meetingDate,
-  });
-}
-
-export async function deleteLeadershipItemAction(formData: FormData) {
-  const itemId = cleanText(formData.get("id"));
-  const meetingDate = cleanText(formData.get("meetingDate"));
-
-  if (!itemId) {
-    redirectLeaders({
-      message: "삭제할 기록을 찾지 못했습니다.",
-      level: "error",
-      date: meetingDate || undefined,
-    });
-  }
-
-  const { supabase } = await requireAdminSession();
-  const { error } = await supabase.from("leadership_items").delete().eq("id", itemId);
-
-  if (error) {
-    redirectLeaders({
-      message: `기록 삭제 실패: ${error.message}`,
-      level: "error",
-      date: meetingDate || undefined,
-    });
-  }
-
-  revalidateLeaders();
-  redirectLeaders({
-    message: "기록이 삭제되었습니다.",
-    date: meetingDate || undefined,
   });
 }
