@@ -333,3 +333,54 @@ export async function saveLeadershipMeetingItemsAction(formData: FormData) {
     date: meetingDate,
   });
 }
+
+export async function deleteLeadershipMeetingsAction(formData: FormData) {
+  const selectedDate = cleanText(formData.get("selectedDate"));
+  const meetingIds = formData
+    .getAll("meetingIds")
+    .map((value) => cleanText(value))
+    .filter(Boolean);
+
+  if (meetingIds.length === 0) {
+    redirectLeaders({
+      message: "삭제할 기록을 선택해 주세요.",
+      level: "error",
+      date: selectedDate || undefined,
+    });
+  }
+
+  const { supabase } = await requireAdminSession();
+
+  const { data: meetings, error: meetingsError } = await supabase
+    .from("leadership_meetings")
+    .select("id, meeting_date")
+    .in("id", meetingIds);
+
+  if (meetingsError) {
+    redirectLeaders({
+      message: `삭제 대상 기록 확인 실패: ${meetingsError.message}`,
+      level: "error",
+      date: selectedDate || undefined,
+    });
+  }
+
+  const deletedMeetingDates = new Set(
+    ((meetings as Array<{ id: string; meeting_date: string }> | null) ?? []).map((meeting) => meeting.meeting_date),
+  );
+
+  const { error } = await supabase.from("leadership_meetings").delete().in("id", meetingIds);
+
+  if (error) {
+    redirectLeaders({
+      message: `기록 삭제 실패: ${error.message}`,
+      level: "error",
+      date: selectedDate || undefined,
+    });
+  }
+
+  revalidateLeaders();
+  redirectLeaders({
+    message: `${meetingIds.length}개 기록이 삭제되었습니다.`,
+    date: selectedDate && !deletedMeetingDates.has(selectedDate) ? selectedDate : undefined,
+  });
+}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { deleteLeadershipMeetingsAction } from "@/app/(admin)/leaders/actions";
 import { LeadershipMeetingEditor } from "@/components/leaders/leadership-meeting-editor";
 import { PageTitle } from "@/components/ui/page-title";
 import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
@@ -206,35 +207,41 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
             </Link>
           </div>
 
-          <div className="space-y-3">
+          <form action={deleteLeadershipMeetingsAction} className="space-y-3">
+            <input type="hidden" name="selectedDate" value={selectedDate} />
             {((recentMeetings as LeadershipMeetingRow[] | null) ?? []).map((meeting) => {
               const meetingItems = recentItemsByMeetingId.get(meeting.id) ?? [];
-              const active = meeting.meeting_date === selectedDate;
 
               return (
-                <Link
+                <label
                   key={meeting.id}
-                  href={`/leaders?date=${meeting.meeting_date}`}
                   className={[
-                    "block rounded-2xl border px-4 py-4 transition active:translate-y-[1px] active:scale-[0.99]",
-                    active
-                      ? "border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+                    "flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 transition",
+                    "hover:border-slate-300 hover:bg-slate-50",
                   ].join(" ")}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-bold text-slate-900">
-                        {formatDate(meeting.meeting_date)} 임원모임
-                      </p>
-                      <p className="mt-1 truncate text-xs font-semibold text-slate-500">{meeting.title}</p>
+                  <input
+                    type="checkbox"
+                    name="meetingIds"
+                    value={meeting.id}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563eb] focus:ring-[#2563eb]"
+                    disabled={!canManage}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-bold text-slate-900">
+                          {formatDate(meeting.meeting_date)} 임원모임
+                        </p>
+                        <p className="mt-1 truncate text-xs font-semibold text-slate-500">{meeting.title}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">
+                        {meetingItems.length}건
+                      </span>
                     </div>
-                    <span className="shrink-0 rounded-full bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-500">
-                      {meetingItems.length}건
-                    </span>
+                    <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{meetingPreviewText(meetingItems)}</p>
                   </div>
-                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{meetingPreviewText(meetingItems)}</p>
-                </Link>
+                </label>
               );
             })}
             {(recentMeetings?.length ?? 0) === 0 ? (
@@ -242,12 +249,20 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
                 아직 저장된 임원모임 회차가 없습니다.
               </p>
             ) : null}
-          </div>
+            {canManage ? (
+              <button
+                type="submit"
+                className="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+              >
+                선택한 기록 삭제
+              </button>
+            ) : null}
+          </form>
         </aside>
 
         <div className="space-y-8">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <form className="flex flex-wrap items-end gap-3">
                 <label className="space-y-1 text-sm">
                   <span className="font-medium text-slate-700">회의 날짜</span>
@@ -271,7 +286,17 @@ export default async function LeadersPage({ searchParams }: LeadersPageProps) {
                   ? `${formatDate(currentMeeting.meeting_date)} 회의 기록 ${currentItems?.length ?? 0}건`
                   : `${formatDate(selectedDate)} 회의는 아직 기록이 없습니다. 전체 저장 시 자동 생성됩니다.`}
               </div>
+
+              <Link
+                href={`/leaders/print?date=${selectedDate}&autoprint=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 active:translate-y-[1px] active:scale-[0.98]"
+              >
+                임원 배포용 PDF
+              </Link>
             </div>
+            <p className="mt-3 text-xs text-slate-500">배포용 PDF는 현재 날짜의 저장된 기록 기준으로 생성됩니다. 저장 전 변경사항은 포함되지 않습니다.</p>
           </section>
 
           <LeadershipMeetingEditor
