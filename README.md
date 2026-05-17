@@ -262,6 +262,8 @@ GOOGLE_CALENDAR_TIMEZONE=Asia/Seoul
 
 - 현재는 읽기 전용입니다.
 - 캘린더 수정/추가는 아직 붙이지 않았습니다.
+- refresh_token 만료를 피하려면 Google Cloud의 OAuth consent screen을 `In production`으로 바꾸고, 새 refresh_token으로 `GOOGLE_CALENDAR_TOKEN`을 갱신하세요.
+- `Testing` 상태에서는 refresh_token이 7일 뒤 만료될 수 있습니다.
 
 ## DB 구조
 

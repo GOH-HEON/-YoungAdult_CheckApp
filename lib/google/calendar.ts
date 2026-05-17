@@ -88,17 +88,12 @@ export async function getGoogleCalendarConfig(): Promise<GoogleCalendarConfig> {
     throw new Error("GOOGLE_CALENDAR_CREDENTIALS 환경변수가 필요합니다.");
   }
 
-  if (!tokenSource) {
-    throw new Error("GOOGLE_CALENDAR_TOKEN 환경변수가 필요합니다.");
-  }
-
   const credentials = await readJsonSource(credentialsSource, "GOOGLE_CALENDAR_CREDENTIALS");
   const token = await readJsonSource(tokenSource, "GOOGLE_CALENDAR_TOKEN");
-
-  const installed = (credentials.installed ?? credentials.web ?? credentials) as JsonObject;
-  const clientId = String(installed.client_id ?? "").trim();
-  const clientSecret = String(installed.client_secret ?? "").trim();
-  const tokenUri = String(installed.token_uri ?? "https://oauth2.googleapis.com/token").trim();
+  const root = (credentials.installed ?? credentials.web ?? credentials) as JsonObject;
+  const clientId = String(root.client_id ?? "").trim();
+  const clientSecret = String(root.client_secret ?? "").trim();
+  const tokenUri = String(root.token_uri ?? "https://oauth2.googleapis.com/token").trim();
   const refreshToken = String(token.refresh_token ?? "").trim();
 
   if (!clientId || !clientSecret) {
@@ -141,6 +136,11 @@ async function fetchGoogleAccessToken(config: GoogleCalendarConfig) {
   };
 
   if (!response.ok || !payload.access_token) {
+    if (payload.error === "invalid_grant") {
+      throw new Error(
+        "Google access token 발급 실패: refresh_token이 만료되었거나 폐기되었습니다. Google OAuth 동의 화면이 Testing이면 7일 뒤 만료될 수 있으니, OAuth consent screen을 In production으로 바꾸고 새 refresh_token으로 GOOGLE_CALENDAR_TOKEN을 갱신하세요.",
+      );
+    }
     const reason = payload.error_description || payload.error || `HTTP ${response.status}`;
     throw new Error(`Google access token 발급 실패: ${reason}`);
   }
