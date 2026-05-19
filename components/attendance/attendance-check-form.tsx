@@ -63,14 +63,18 @@ export function AttendanceCheckForm({
 
   const [rows, setRows] = useState<Record<string, RowState>>(initialRows);
 
-  function updateStatus(memberId: string, status: AttendanceStatus) {
-    setRows((prev) => ({
-      ...prev,
-      [memberId]: {
-        ...prev[memberId],
-        status,
-      },
-    }));
+  function toggleStatus(memberId: string, status: AttendanceStatus) {
+    setRows((prev) => {
+      const currentStatus = prev[memberId]?.status ?? "";
+
+      return {
+        ...prev,
+        [memberId]: {
+          ...prev[memberId],
+          status: currentStatus === status ? "" : status,
+        },
+      };
+    });
   }
 
   function toggleSelectedMember(memberId: string) {
@@ -390,7 +394,8 @@ export function AttendanceCheckForm({
                           <button
                             key={status}
                             type="button"
-                            onClick={() => updateStatus(member.id, status)}
+                            onClick={() => toggleStatus(member.id, status)}
+                            aria-pressed={active}
                             className={[
                               "rounded-lg border px-2 py-1 text-xs font-semibold",
                               active
