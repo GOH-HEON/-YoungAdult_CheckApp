@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { canWrite, getRouteHandlerSession } from "@/lib/auth/session";
 import { AttendanceSaveError, saveAttendanceRecords } from "@/lib/attendance/save";
 import type { AttendanceStatus } from "@/lib/constants/domain";
@@ -7,6 +8,7 @@ type SaveAttendancePayload = {
   meetingTypeId?: number;
   meetingTypeName?: string;
   meetingDate: string;
+  clearMissingRows?: boolean;
   rows: Array<{
     memberId: string;
     status: AttendanceStatus | "";
@@ -31,6 +33,13 @@ export async function POST(request: Request) {
       userId: user.id,
       input: body,
     });
+
+    revalidatePath("/attendance/check");
+    revalidatePath("/attendance/view");
+    revalidatePath("/attendance/print");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    revalidatePath("/reports/score");
 
     return NextResponse.json({
       ok: true,

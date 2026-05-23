@@ -180,6 +180,7 @@ export function AttendanceCheckForm({
       meetingTypeId,
       meetingTypeName: meetingTypeName ?? "",
       meetingDate,
+      clearMissingRows: true,
       rows: members.map((member) => ({
         memberId: member.id,
         status: rows[member.id]?.status ?? "",
