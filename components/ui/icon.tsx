@@ -11,6 +11,7 @@ type IconName =
   | "quick-attendance"
   | "view-attendance"
   | "reports"
+  | "history"
   | "newcomer"
   | "plus-user";
 
@@ -219,6 +220,24 @@ export function Icon({ name, className = "h-5 w-5", filled = false }: IconProps)
           <path d="M10 19V5" />
           <path d="M15 19v-8" />
           <path d="M20 19H4" />
+        </svg>
+      );
+
+    case "history":
+      return (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={strokeWidth}
+          className={className}
+        >
+          <path d="M4 12a8 8 0 1 1 2.35 5.65" />
+          <path d="M4 4v4h4" />
+          <path d="M12 8v5l3.5 2" />
         </svg>
       );
 

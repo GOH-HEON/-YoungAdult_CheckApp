@@ -48,12 +48,34 @@ as $$
   );
 $$;
 
+create or replace function public.is_personal_notes_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users u
+    where u.id = auth.uid()
+      and u.is_active = true
+      and (
+        coalesce(u.name, '') like '%고헌%'
+        or split_part(lower(coalesce(u.email, '')), '@', 1) like '%goheon%'
+        or split_part(lower(coalesce(u.email, '')), '@', 1) like '%gohheon%'
+      )
+  );
+$$;
+
 revoke all on function public.is_read_user() from public;
 grant execute on function public.is_read_user() to authenticated;
 revoke all on function public.is_admin_user() from public;
 grant execute on function public.is_admin_user() to authenticated;
 revoke all on function public.is_chairboard_user() from public;
 grant execute on function public.is_chairboard_user() to authenticated;
+revoke all on function public.is_personal_notes_user() from public;
+grant execute on function public.is_personal_notes_user() to authenticated;
 
 alter table public.members enable row level security;
 alter table public.newcomer_profiles enable row level security;
@@ -65,6 +87,7 @@ alter table public.users enable row level security;
 alter table public.leadership_meetings enable row level security;
 alter table public.leadership_items enable row level security;
 alter table public.chairboard_notes enable row level security;
+alter table public.login_history enable row level security;
 
 drop policy if exists users_admin_all on public.users;
 drop policy if exists users_read_self_or_admin on public.users;
@@ -204,3 +227,9 @@ on public.chairboard_notes
 for all
 using (public.is_chairboard_user())
 with check (public.is_chairboard_user());
+
+drop policy if exists login_history_personal_read on public.login_history;
+create policy login_history_personal_read
+on public.login_history
+for select
+using (public.is_personal_notes_user());

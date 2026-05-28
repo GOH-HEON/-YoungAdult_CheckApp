@@ -43,6 +43,8 @@ app/
     newcomers/
       actions.ts
       page.tsx
+    login-history/
+      page.tsx
     reports/page.tsx
     settings/
       actions.ts
@@ -96,6 +98,7 @@ proxy.ts
 - `/attendance/check`
 - `/attendance/view`
 - `/newcomers`
+- `/login-history`
 - `/reports`
 - `/settings`
 

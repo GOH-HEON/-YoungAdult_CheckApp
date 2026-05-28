@@ -129,6 +129,17 @@ create table if not exists public.chairboard_notes (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.login_history (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  user_name text,
+  user_email text not null,
+  user_role text,
+  signed_in_at timestamptz not null default now(),
+  user_agent text,
+  ip_address text
+);
+
 alter table if exists public.leadership_items
   add column if not exists department_name text;
 
@@ -158,6 +169,8 @@ create index if not exists idx_leadership_items_status on public.leadership_item
 create index if not exists idx_leadership_items_due_date on public.leadership_items(due_date);
 create index if not exists idx_leadership_items_created_at on public.leadership_items(created_at desc);
 create index if not exists idx_chairboard_notes_updated_at on public.chairboard_notes(updated_at desc);
+create index if not exists idx_login_history_user_id_signed_in_at on public.login_history(user_id, signed_in_at desc);
+create index if not exists idx_login_history_signed_in_at on public.login_history(signed_in_at desc);
 
 -- updated_at triggers
 create trigger trg_users_updated_at
@@ -249,12 +262,34 @@ as $$
   );
 $$;
 
+create or replace function public.is_personal_notes_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users u
+    where u.id = auth.uid()
+      and u.is_active = true
+      and (
+        coalesce(u.name, '') like '%고헌%'
+        or split_part(lower(coalesce(u.email, '')), '@', 1) like '%goheon%'
+        or split_part(lower(coalesce(u.email, '')), '@', 1) like '%gohheon%'
+      )
+  );
+$$;
+
 revoke all on function public.is_read_user() from public;
 grant execute on function public.is_read_user() to authenticated;
 revoke all on function public.is_admin_user() from public;
 grant execute on function public.is_admin_user() to authenticated;
 revoke all on function public.is_chairboard_user() from public;
 grant execute on function public.is_chairboard_user() to authenticated;
+revoke all on function public.is_personal_notes_user() from public;
+grant execute on function public.is_personal_notes_user() to authenticated;
 
 alter table public.users enable row level security;
 alter table public.departments enable row level security;
@@ -266,6 +301,7 @@ alter table public.attendance_records enable row level security;
 alter table public.leadership_meetings enable row level security;
 alter table public.leadership_items enable row level security;
 alter table public.chairboard_notes enable row level security;
+alter table public.login_history enable row level security;
 
 drop policy if exists users_admin_all on public.users;
 drop policy if exists users_read_self_or_admin on public.users;
@@ -405,3 +441,9 @@ on public.chairboard_notes
 for all
 using (public.is_chairboard_user())
 with check (public.is_chairboard_user());
+
+drop policy if exists login_history_personal_read on public.login_history;
+create policy login_history_personal_read
+on public.login_history
+for select
+using (public.is_personal_notes_user());

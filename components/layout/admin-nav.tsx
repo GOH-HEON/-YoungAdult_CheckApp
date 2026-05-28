@@ -9,7 +9,7 @@ import { Icon } from "@/components/ui/icon";
 type NavChild = {
   href: string;
   label: string;
-  icon: "members" | "newcomer" | "plus-user" | "attendance" | "view-attendance" | "reports" | "events";
+  icon: "members" | "newcomer" | "plus-user" | "attendance" | "view-attendance" | "reports" | "events" | "history";
   requiresWrite?: boolean;
   requiresChairboard?: boolean;
   requiresPersonalNotes?: boolean;
@@ -51,6 +51,7 @@ const navEntries: NavEntry[] = [
       { href: "/leaders", label: "임원모임 기록", icon: "events" },
       { href: "/chairboard", label: "회장단 메모", icon: "events", requiresChairboard: true },
       { href: "/personal-notes", label: "기타 메모", icon: "events", requiresPersonalNotes: true },
+      { href: "/login-history", label: "접속 기록", icon: "history", requiresPersonalNotes: true },
     ],
   },
   { href: "/reports", label: "리포트", icon: "reports" },

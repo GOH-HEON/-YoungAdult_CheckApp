@@ -13,6 +13,7 @@
   - `public.is_read_user()`: 조회 권한 판정
   - `public.is_admin_user()`: 쓰기 권한 판정
 - 모든 주요 테이블(`members`, `newcomer_profiles`, `meetings`, `attendance_records`, `departments`, `meeting_types`, `users`)에 RLS 활성화
+- 접속 기록 테이블(`login_history`)은 본인 전용 페이지에서만 읽도록 제한
 
 ## 테이블별 RLS 방향
 
@@ -23,6 +24,7 @@
 - `departments`: 활성 계정 조회 허용, 쓰기는 관리자만 허용
 - `meeting_types`: 활성 계정 조회 허용, 쓰기는 관리자만 허용
 - `users`: 본인 행 또는 관리자만 조회, 쓰기는 관리자만 허용
+- `login_history`: 본인 전용 페이지에서만 조회 허용, 기록 작성은 서버 전용 서비스 계정만 수행
 
 ## 민감정보 보호 방향
 
