@@ -9,6 +9,7 @@ import {
   PERSONAL_NOTE_TITLE_PREFIX,
   stripPersonalNotePrefix,
 } from "@/lib/notes/personal-notes";
+import { sanitizeNoteHtml } from "@/lib/security/note-html";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type PersonalNotesPageProps = {
@@ -95,7 +96,9 @@ export default async function PersonalNotesPage({ searchParams }: PersonalNotesP
   const requestedNoteId = params.noteId?.trim() ?? "";
   const selectedNote = isDraft ? null : notes.find((note) => note.id === requestedNoteId) ?? notes[0] ?? null;
   const selectedTitle = selectedNote ? stripPersonalNotePrefix(selectedNote.title) : PERSONAL_NOTE_DEFAULT_TITLE;
-  const selectedContentHtml = isDraft ? "<p><br/></p>" : selectedNote?.content_html ?? "<p><br/></p>";
+  const selectedContentHtml = isDraft
+    ? "<p><br/></p>"
+    : sanitizeNoteHtml(selectedNote?.content_html) || "<p><br/></p>";
   const updatedAtLabel = isDraft ? "새 메모를 시작합니다." : formatUpdatedAt(selectedNote?.updated_at);
   const editorKey = `${selectedNote?.id ?? "draft"}:${selectedNote?.updated_at ?? "new"}:${isDraft ? "draft" : "saved"}`;
 

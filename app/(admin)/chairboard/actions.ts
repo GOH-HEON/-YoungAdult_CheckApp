@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { canWrite, requireChairboardSession } from "@/lib/auth/session";
 import { PERSONAL_NOTE_TITLE_PREFIX } from "@/lib/notes/personal-notes";
+import { sanitizeNoteHtml } from "@/lib/security/note-html";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanText } from "@/lib/utils/format";
 
@@ -32,11 +33,7 @@ function redirectChairboard({
 }
 
 function normalizeHtml(value: FormDataEntryValue | null) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.slice(0, 200_000);
+  return sanitizeNoteHtml(value);
 }
 
 export async function saveChairboardNoteAction(formData: FormData) {

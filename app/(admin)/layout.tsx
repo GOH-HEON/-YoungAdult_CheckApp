@@ -14,7 +14,7 @@ export default async function AdminLayout({
       userEmail={user.email ?? ""}
       canWrite={canWrite(appUser)}
       canAccessChairboard={canAccessChairboard(appUser)}
-      canAccessPersonalNotes={canAccessPersonalNotes(appUser, user.email)}
+      canAccessPersonalNotes={canAccessPersonalNotes(appUser)}
     >
       {children}
     </AdminShell>

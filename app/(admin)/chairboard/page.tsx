@@ -4,6 +4,7 @@ import { ChairboardEditor } from "@/components/chairboard/chairboard-editor";
 import { PageTitle } from "@/components/ui/page-title";
 import { canWrite, requireChairboardSession } from "@/lib/auth/session";
 import { PERSONAL_NOTE_TITLE_PREFIX } from "@/lib/notes/personal-notes";
+import { sanitizeNoteHtml } from "@/lib/security/note-html";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type ChairboardPageProps = {
@@ -91,7 +92,9 @@ export default async function ChairboardPage({ searchParams }: ChairboardPagePro
     ? null
     : chairboardNotes.find((note) => note.id === requestedNoteId) ?? chairboardNotes[0] ?? null;
   const selectedNoteLabel = isDraft ? "새 메모" : selectedNote?.title ?? "회장단 임원모임 메모";
-  const selectedContentHtml = isDraft ? "<p><br/></p>" : selectedNote?.content_html ?? "<p><br/></p>";
+  const selectedContentHtml = isDraft
+    ? "<p><br/></p>"
+    : sanitizeNoteHtml(selectedNote?.content_html) || "<p><br/></p>";
   const updatedAtLabel = isDraft
     ? "새 메모를 시작합니다."
     : formatUpdatedAt(selectedNote?.updated_at);

@@ -13,7 +13,25 @@ export type AppUserRow = {
   role: AppRole;
   is_active: boolean;
   name: string | null;
+  is_personal_notes_owner: boolean;
 };
+
+const APP_USER_COLUMNS_WITH_FLAG = "id, role, is_active, name, is_personal_notes_owner";
+const APP_USER_COLUMNS_BASE = "id, role, is_active, name";
+
+function normalizeAppUser(data: Record<string, unknown> | null): AppUserRow | null {
+  if (!data) {
+    return null;
+  }
+
+  return {
+    id: String(data.id),
+    role: data.role as AppRole,
+    is_active: Boolean(data.is_active),
+    name: (data.name as string | null) ?? null,
+    is_personal_notes_owner: Boolean(data.is_personal_notes_owner),
+  };
+}
 
 export type SessionContext = {
   user: User;
@@ -45,36 +63,47 @@ export function canAccessChairboard(appUser: AppUserRow | null) {
   return Boolean(appUser && appUser.is_active && canAccessChairboardByRole(appUser.role));
 }
 
-function getNormalizedEmailLocalPart(email: string | null | undefined) {
-  return (email?.split("@")[0] ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+export function canAccessPersonalNotes(appUser: AppUserRow | null) {
+  // 부분 문자열(name/email includes) 대신 전용 플래그로 정확히 판정한다.
+  return Boolean(appUser?.is_active && appUser.is_personal_notes_owner);
 }
 
-export function canAccessPersonalNotes(appUser: AppUserRow | null, email: string | null | undefined) {
-  if (!appUser?.is_active) {
-    return false;
+type UsersReader = {
+  from: (table: "users") => {
+    select: (columns: string) => {
+      eq: (
+        column: "id",
+        value: string,
+      ) => {
+        maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: unknown }>;
+      };
+    };
+  };
+};
+
+// is_personal_notes_owner 컬럼이 아직 마이그레이션되지 않았을 수 있으므로,
+// 컬럼 포함 조회 실패 시 기본 컬럼으로 폴백한다(로그인 흐름 보호, 플래그는 false 처리).
+async function readAppUserRow(client: UsersReader, userId: string): Promise<AppUserRow | null> {
+  const withFlag = await client.from("users").select(APP_USER_COLUMNS_WITH_FLAG).eq("id", userId).maybeSingle();
+
+  if (!withFlag.error) {
+    return normalizeAppUser(withFlag.data);
   }
 
-  const name = appUser.name?.trim() ?? "";
-  const emailLocalPart = getNormalizedEmailLocalPart(email);
+  const base = await client.from("users").select(APP_USER_COLUMNS_BASE).eq("id", userId).maybeSingle();
 
-  return name.includes("고헌") || emailLocalPart.includes("goheon") || emailLocalPart.includes("gohheon");
+  if (base.error) {
+    return null;
+  }
+
+  return normalizeAppUser(base.data);
 }
 
 async function readAppUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   userId: string,
 ) {
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, role, is_active, name")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
-    return null;
-  }
-
-  return (data as AppUserRow | null) ?? null;
+  return readAppUserRow(supabase as unknown as UsersReader, userId);
 }
 
 async function readAppUserByAdminClient(userId: string) {
@@ -83,13 +112,7 @@ async function readAppUserByAdminClient(userId: string) {
   }
 
   const adminSupabase = createSupabaseAdminClient();
-  const { data } = await adminSupabase
-    .from("users")
-    .select("id, role, is_active, name")
-    .eq("id", userId)
-    .maybeSingle();
-
-  return (data as AppUserRow | null) ?? null;
+  return readAppUserRow(adminSupabase as unknown as UsersReader, userId);
 }
 
 async function resolveAppUser(
@@ -152,7 +175,7 @@ export async function requireChairboardSession(): Promise<SessionContext> {
 export async function requirePersonalNotesSession(): Promise<SessionContext> {
   const session = await requireSession();
 
-  if (!canAccessPersonalNotes(session.appUser, session.user.email)) {
+  if (!canAccessPersonalNotes(session.appUser)) {
     redirect("/dashboard?level=error&message=개인 메모 전용 페이지입니다.");
   }
 

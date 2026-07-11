@@ -19,6 +19,7 @@ create table if not exists public.users (
   name text,
   role text not null default 'admin' check (role in ('admin', 'viewer', 'staff', 'chairboard')),
   is_active boolean not null default true,
+  is_personal_notes_owner boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -274,11 +275,7 @@ as $$
     from public.users u
     where u.id = auth.uid()
       and u.is_active = true
-      and (
-        coalesce(u.name, '') like '%고헌%'
-        or split_part(lower(coalesce(u.email, '')), '@', 1) like '%goheon%'
-        or split_part(lower(coalesce(u.email, '')), '@', 1) like '%gohheon%'
-      )
+      and u.is_personal_notes_owner = true
   );
 $$;
 
@@ -431,16 +428,44 @@ with check (public.is_admin_user());
 
 drop policy if exists chairboard_notes_chairboard_read on public.chairboard_notes;
 drop policy if exists chairboard_notes_chairboard_write on public.chairboard_notes;
+drop policy if exists chairboard_notes_personal_read on public.chairboard_notes;
+drop policy if exists chairboard_notes_personal_write on public.chairboard_notes;
+
+-- 회장단 공유 메모: 개인 메모([기타 메모] 접두어) 행은 제외한다.
 create policy chairboard_notes_chairboard_read
 on public.chairboard_notes
 for select
-using (public.is_chairboard_user());
+using (public.is_chairboard_user() and coalesce(title, '') not like '[기타 메모]%');
 
 create policy chairboard_notes_chairboard_write
 on public.chairboard_notes
 for all
-using (public.is_chairboard_user())
-with check (public.is_chairboard_user());
+using (public.is_chairboard_user() and coalesce(title, '') not like '[기타 메모]%')
+with check (public.is_chairboard_user() and coalesce(title, '') not like '[기타 메모]%');
+
+-- 개인 메모: 개인 메모 전용 사용자가 본인 소유 행만 접근한다.
+create policy chairboard_notes_personal_read
+on public.chairboard_notes
+for select
+using (
+  public.is_personal_notes_user()
+  and created_by = auth.uid()
+  and coalesce(title, '') like '[기타 메모]%'
+);
+
+create policy chairboard_notes_personal_write
+on public.chairboard_notes
+for all
+using (
+  public.is_personal_notes_user()
+  and created_by = auth.uid()
+  and coalesce(title, '') like '[기타 메모]%'
+)
+with check (
+  public.is_personal_notes_user()
+  and created_by = auth.uid()
+  and coalesce(title, '') like '[기타 메모]%'
+);
 
 drop policy if exists login_history_personal_read on public.login_history;
 create policy login_history_personal_read

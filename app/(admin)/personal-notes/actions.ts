@@ -9,6 +9,7 @@ import {
   PERSONAL_NOTE_TITLE_PREFIX,
   withPersonalNotePrefix,
 } from "@/lib/notes/personal-notes";
+import { sanitizeNoteHtml } from "@/lib/security/note-html";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanText } from "@/lib/utils/format";
 
@@ -36,11 +37,7 @@ function redirectPersonalNotes({
 }
 
 function normalizeHtml(value: FormDataEntryValue | null) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.slice(0, 200_000);
+  return sanitizeNoteHtml(value);
 }
 
 export async function savePersonalNoteAction(formData: FormData) {
