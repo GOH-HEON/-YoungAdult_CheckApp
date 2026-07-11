@@ -139,7 +139,28 @@ function toDateKey(date: Date, timeZone: string) {
   }).format(date);
 }
 
+function shiftDateKey(dateKey: string, deltaDays: number) {
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return dateKey;
+  }
+
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  date.setUTCDate(date.getUTCDate() + deltaDays);
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
 function getEventDateRange(event: GoogleCalendarEvent, timeZone: string) {
+  // 종일(all-day) 이벤트는 순수 달력 날짜이며 end.date가 exclusive(마지막 날 + 1)이다.
+  // TZ 변환(toDateKey)을 거치면 UTC 서버에서 하루가 밀리므로 문자열 날짜로 직접 계산한다.
+  if (event.start.date) {
+    const startKey = event.start.date;
+    const rawEndKey = event.end.date ?? event.start.date;
+    const inclusiveEndKey = shiftDateKey(rawEndKey, -1);
+    const endKey = inclusiveEndKey < startKey ? startKey : inclusiveEndKey;
+    return { startKey, endKey };
+  }
+
   const start = getEventStartDate(event);
   const end = getEventEndDate(event);
 
