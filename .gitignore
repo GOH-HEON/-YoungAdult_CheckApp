@@ -39,6 +39,14 @@ member.csv
 member.xlsx
 private-login-accounts.md
 
+# personal data (do not commit)
+*.pdf
+iksanchyag_users.xlsx
+*_users.xlsx
+
+# supabase local temp
+supabase/.temp/
+
 # vercel
 .vercel
 
