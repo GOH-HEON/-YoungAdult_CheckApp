@@ -16,20 +16,35 @@ export type AppUserRow = {
   is_personal_notes_owner: boolean;
 };
 
-const APP_USER_COLUMNS_WITH_FLAG = "id, role, is_active, name, is_personal_notes_owner";
-const APP_USER_COLUMNS_BASE = "id, role, is_active, name";
+const APP_USER_COLUMNS_WITH_FLAG = "id, role, is_active, name, email, is_personal_notes_owner";
+const APP_USER_COLUMNS_BASE = "id, role, is_active, name, email";
 
-function normalizeAppUser(data: Record<string, unknown> | null): AppUserRow | null {
+// is_personal_notes_owner 컬럼(마이그레이션 07)이 아직 없을 때만 쓰는 레거시 판정식.
+// 컬럼이 생기면 이 폴백은 사용되지 않고 정확한 플래그 매칭으로 승격된다.
+function legacyPersonalNotesOwner(name: unknown, email: unknown): boolean {
+  const normalizedName = typeof name === "string" ? name.trim() : "";
+  const localPart = (typeof email === "string" ? email.split("@")[0] : "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return normalizedName.includes("고헌") || localPart.includes("goheon") || localPart.includes("gohheon");
+}
+
+function normalizeAppUser(
+  data: Record<string, unknown> | null,
+  options: { ownerFromColumn: boolean },
+): AppUserRow | null {
   if (!data) {
     return null;
   }
+
+  const isOwner = options.ownerFromColumn
+    ? Boolean(data.is_personal_notes_owner)
+    : legacyPersonalNotesOwner(data.name, data.email);
 
   return {
     id: String(data.id),
     role: data.role as AppRole,
     is_active: Boolean(data.is_active),
     name: (data.name as string | null) ?? null,
-    is_personal_notes_owner: Boolean(data.is_personal_notes_owner),
+    is_personal_notes_owner: isOwner,
   };
 }
 
@@ -81,13 +96,14 @@ type UsersReader = {
   };
 };
 
-// is_personal_notes_owner 컬럼이 아직 마이그레이션되지 않았을 수 있으므로,
-// 컬럼 포함 조회 실패 시 기본 컬럼으로 폴백한다(로그인 흐름 보호, 플래그는 false 처리).
+// is_personal_notes_owner 컬럼(마이그레이션 07)이 아직 없을 수 있으므로, 컬럼 포함 조회 실패 시
+// 기본 컬럼으로 폴백한다. 폴백 시에는 레거시 판정식으로 소유자를 유지해 접근 회귀를 막고,
+// 컬럼이 존재하면 정확한 플래그 매칭으로 자동 승격된다.
 async function readAppUserRow(client: UsersReader, userId: string): Promise<AppUserRow | null> {
   const withFlag = await client.from("users").select(APP_USER_COLUMNS_WITH_FLAG).eq("id", userId).maybeSingle();
 
   if (!withFlag.error) {
-    return normalizeAppUser(withFlag.data);
+    return normalizeAppUser(withFlag.data, { ownerFromColumn: true });
   }
 
   const base = await client.from("users").select(APP_USER_COLUMNS_BASE).eq("id", userId).maybeSingle();
@@ -96,7 +112,7 @@ async function readAppUserRow(client: UsersReader, userId: string): Promise<AppU
     return null;
   }
 
-  return normalizeAppUser(base.data);
+  return normalizeAppUser(base.data, { ownerFromColumn: false });
 }
 
 async function readAppUser(
