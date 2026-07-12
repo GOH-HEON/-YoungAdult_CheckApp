@@ -85,6 +85,8 @@ export async function addCounterAction(formData: FormData) {
   const campaignId = cleanText(formData.get("campaignId"));
   const metric = cleanText(formData.get("metric"));
   const note = cleanText(formData.get("note")) || null;
+  const leaderName = cleanText(formData.get("leader_name")) || null;
+  const targetName = cleanText(formData.get("target_name")) || null;
   const rawDelta = Number.parseInt(cleanText(formData.get("delta")) || "1", 10);
 
   if (!campaignId || !isCounterMetric(metric)) {
@@ -117,6 +119,8 @@ export async function addCounterAction(formData: FormData) {
     metric,
     delta,
     note,
+    leader_name: leaderName,
+    target_name: targetName,
     created_by: user.id,
   });
 

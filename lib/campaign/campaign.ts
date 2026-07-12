@@ -36,6 +36,8 @@ export type CounterLogRow = {
   metric: CounterMetric;
   delta: number;
   note: string | null;
+  leader_name: string | null;
+  target_name: string | null;
   created_at: string;
   actor_name: string | null;
 };

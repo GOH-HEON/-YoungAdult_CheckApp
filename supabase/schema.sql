@@ -512,6 +512,8 @@ create table if not exists public.campaign_counter_logs (
   metric text not null check (metric in ('전도','권유')),
   delta integer not null check (delta <> 0),
   note text,
+  leader_name text,
+  target_name text,
   created_by uuid references public.users(id),
   created_at timestamptz not null default now()
 );

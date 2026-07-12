@@ -42,6 +42,8 @@ type RawCounterLog = {
   metric: CounterMetric;
   delta: number;
   note: string | null;
+  leader_name: string | null;
+  target_name: string | null;
   created_at: string;
   users: { name: string | null } | null;
 };
@@ -148,22 +150,21 @@ function CounterPanel({
           </p>
 
           {canManage ? (
-            <div className="mt-4 flex items-center gap-2">
-              <form action={addCounterAction}>
-                <input type="hidden" name="campaignId" value={campaignId} />
-                <input type="hidden" name="metric" value={metric} />
-                <input type="hidden" name="delta" value="-1" />
-                <button
-                  type="submit"
-                  className="w-12 rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-bold text-slate-500"
-                >
-                  −1
-                </button>
-              </form>
-              <form action={addCounterAction} className="flex-1">
+            <div className="mt-4 space-y-2">
+              <form action={addCounterAction} className="space-y-2 rounded-xl border border-slate-200 p-3">
                 <input type="hidden" name="campaignId" value={campaignId} />
                 <input type="hidden" name="metric" value={metric} />
                 <input type="hidden" name="delta" value="1" />
+                <input
+                  name="leader_name"
+                  placeholder="인도자 (선택)"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+                <input
+                  name="target_name"
+                  placeholder={`${metric}대상자 (선택)`}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
                 <button
                   type="submit"
                   className={[
@@ -172,6 +173,17 @@ function CounterPanel({
                   ].join(" ")}
                 >
                   ＋ {metric} 추가
+                </button>
+              </form>
+              <form action={addCounterAction}>
+                <input type="hidden" name="campaignId" value={campaignId} />
+                <input type="hidden" name="metric" value={metric} />
+                <input type="hidden" name="delta" value="-1" />
+                <button
+                  type="submit"
+                  className="w-full rounded-lg border border-slate-300 bg-white py-2 text-xs font-bold text-slate-500"
+                >
+                  −1 되돌리기
                 </button>
               </form>
             </div>
@@ -186,12 +198,19 @@ function CounterPanel({
             <ul className="divide-y divide-slate-100">
               {recent.map((log) => (
                 <li key={log.id} className="flex items-center gap-3 py-2 text-sm">
-                  <span className={["w-8 font-extrabold", log.delta > 0 ? "text-emerald-600" : "text-rose-600"].join(" ")}>
+                  <span className={["w-8 shrink-0 font-extrabold", log.delta > 0 ? "text-emerald-600" : "text-rose-600"].join(" ")}>
                     {log.delta > 0 ? `+${log.delta}` : log.delta}
                   </span>
-                  <span className="font-semibold text-slate-700">{log.actor_name ?? "-"}</span>
-                  {log.note ? <span className="truncate text-slate-400">· {log.note}</span> : null}
-                  <span className="ml-auto text-xs text-slate-400">
+                  {log.leader_name || log.target_name ? (
+                    <span className="truncate">
+                      <span className="font-semibold text-slate-700">{log.leader_name || "?"}</span>
+                      <span className="text-slate-400"> → </span>
+                      <span className="font-semibold text-slate-700">{log.target_name || "?"}</span>
+                    </span>
+                  ) : (
+                    <span className="truncate font-semibold text-slate-700">{log.actor_name ?? "-"}</span>
+                  )}
+                  <span className="ml-auto shrink-0 text-xs text-slate-400">
                     {new Date(log.created_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </li>
@@ -275,7 +294,7 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
       .eq("campaign_id", campaign.id),
     supabase
       .from("campaign_counter_logs")
-      .select("id, metric, delta, note, created_at, users(name)")
+      .select("id, metric, delta, note, leader_name, target_name, created_at, users(name)")
       .eq("campaign_id", campaign.id)
       .order("created_at", { ascending: false }),
     supabase.from("departments").select("id, name").order("name"),
@@ -296,6 +315,8 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
     metric: row.metric,
     delta: row.delta,
     note: row.note,
+    leader_name: row.leader_name,
+    target_name: row.target_name,
     created_at: row.created_at,
     actor_name: row.users?.name ?? null,
   }));
