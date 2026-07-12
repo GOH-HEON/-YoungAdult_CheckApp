@@ -1,6 +1,5 @@
 import { createPageReadClient, getRouteHandlerSession } from "@/lib/auth/session";
 import { achievementRate, progressWidth, type CounterMetric } from "@/lib/campaign/campaign";
-import { compareDepartmentName } from "@/lib/utils/department-order";
 
 // 목표대비 달성 화면을 모바일 최적화 정적 HTML로 내보내기(다운로드).
 // 본 페이지 컴포넌트는 그대로 두고, 이 라우트가 별도의 모바일용 HTML을 생성한다.
@@ -85,19 +84,17 @@ export async function GET(request: Request) {
     return new Response(empty, { headers: { "Content-Type": "text/html; charset=utf-8" } });
   }
 
-  const [{ data: participantData }, { data: counterData }, { data: departments }, { data: memberData }] =
-    await Promise.all([
-      client
-        .from("campaign_participants")
-        .select("registered, participated, members(name, gender, department_id, departments(name))")
-        .eq("campaign_id", campaign.id),
-      client
-        .from("campaign_counter_logs")
-        .select("metric, delta, leader_name, target_name, created_at")
-        .eq("campaign_id", campaign.id),
-      client.from("departments").select("id, name").order("name"),
-      client.from("members").select("name, departments(name)").eq("is_active", true),
-    ]);
+  const [{ data: participantData }, { data: counterData }, { data: memberData }] = await Promise.all([
+    client
+      .from("campaign_participants")
+      .select("registered, participated, members(name, gender, department_id, departments(name))")
+      .eq("campaign_id", campaign.id),
+    client
+      .from("campaign_counter_logs")
+      .select("metric, delta, leader_name, target_name, created_at")
+      .eq("campaign_id", campaign.id),
+    client.from("members").select("name, departments(name)").eq("is_active", true),
+  ]);
 
   const participants: ParticipantRow[] = (
     (participantData as
@@ -123,68 +120,10 @@ export async function GET(request: Request) {
   const evangelismTotal = logs.filter((l) => l.metric === "전도").reduce((s, l) => s + l.delta, 0);
   const invitationTotal = logs.filter((l) => l.metric === "권유").reduce((s, l) => s + l.delta, 0);
 
-  const sortedDepartments = [...((departments as { id: number; name: string }[] | null) ?? [])].sort((a, b) =>
-    compareDepartmentName(a.name, b.name),
-  );
-
-  // 부서별 접수/참여
-  const deptRows = sortedDepartments
-    .map((d) => {
-      const inDept = participants.filter((p) => p.department_name === d.name);
-      return {
-        name: d.name,
-        total: inDept.length,
-        reg: inDept.filter((p) => p.registered).length,
-        part: inDept.filter((p) => p.participated).length,
-        members: inDept.sort((a, b) => a.name.localeCompare(b.name, "ko")),
-      };
-    })
-    .filter((d) => d.total > 0);
-
   const counterRows = (metric: CounterMetric) =>
     logs
       .filter((l) => l.metric === metric && l.delta > 0)
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
-
-  const badge = (on: boolean, onText: string, offText: string) =>
-    `<span class="badge ${on ? "on" : "off"}">${on ? onText : offText}</span>`;
-
-  const deptSummaryHtml = deptRows
-    .map(
-      (d) => `
-      <div class="dept">
-        <div class="dept-head"><b>${esc(d.name)}</b><span>${d.total}명</span></div>
-        <div class="dept-line">접수 ${d.reg} / ${d.total}</div>
-        <div class="bar sm"><i style="width:${progressWidth(d.reg, d.total)}%;background:#2563eb"></i></div>
-        <div class="dept-line">참여 ${d.part} / ${d.total}</div>
-        <div class="bar sm"><i style="width:${progressWidth(d.part, d.total)}%;background:#059669"></i></div>
-      </div>`,
-    )
-    .join("");
-
-  const rosterHtml = deptRows
-    .map(
-      (d) => `
-      <details class="roster">
-        <summary>${esc(d.name)} <span>(참여 ${d.part}/${d.total})</span></summary>
-        <table>
-          <thead><tr><th>이름</th><th>성별</th><th>접수</th><th>참여</th></tr></thead>
-          <tbody>
-            ${d.members
-              .map(
-                (m) => `<tr>
-                  <td class="nm">${esc(m.name)}</td>
-                  <td>${esc(m.gender)}</td>
-                  <td>${badge(m.registered, "접수", "-")}</td>
-                  <td>${badge(m.participated, "참여", "-")}</td>
-                </tr>`,
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </details>`,
-    )
-    .join("");
 
   const counterHtml = (metric: CounterMetric, color: string) => {
     const rows = counterRows(metric);
@@ -275,12 +214,6 @@ export async function GET(request: Request) {
     ${card("전도", evangelismTotal, campaign.goal_evangelism)}
     ${card("권유", invitationTotal, campaign.goal_invitation)}
   </div>
-
-  <h2>부서별 접수 / 참여</h2>
-  ${deptSummaryHtml || '<p class="empty">데이터가 없습니다.</p>'}
-
-  <h2>접수 / 참여 명단</h2>
-  ${rosterHtml || '<p class="empty">데이터가 없습니다.</p>'}
 
   ${counterHtml("전도", "#7c3aed")}
   ${counterHtml("권유", "#d97706")}
