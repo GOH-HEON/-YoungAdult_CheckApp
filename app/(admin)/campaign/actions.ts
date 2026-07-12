@@ -8,10 +8,21 @@ import { isCounterMetric } from "@/lib/campaign/campaign";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanText } from "@/lib/utils/format";
 
-function backToCampaign({ message, level = "ok" }: { message: string; level?: "ok" | "error" }): never {
+function backToCampaign({
+  message,
+  level = "ok",
+  dept,
+}: {
+  message: string;
+  level?: "ok" | "error";
+  dept?: string;
+}): never {
   const params = new URLSearchParams();
   params.set("level", level);
   params.set("message", message);
+  if (dept) {
+    params.set("dept", dept);
+  }
   redirect(`/campaign?${params.toString()}`);
 }
 
@@ -24,9 +35,10 @@ export async function toggleParticipantAction(formData: FormData) {
   const memberId = cleanText(formData.get("memberId"));
   const field = cleanText(formData.get("field")); // "registered" | "participated"
   const next = parseBool(formData.get("next"));
+  const dept = cleanText(formData.get("dept")) || undefined;
 
   if (!campaignId || !memberId || (field !== "registered" && field !== "participated")) {
-    backToCampaign({ level: "error", message: "잘못된 요청입니다." });
+    backToCampaign({ level: "error", message: "잘못된 요청입니다.", dept });
   }
 
   await requireAdminSession();
@@ -59,11 +71,14 @@ export async function toggleParticipantAction(formData: FormData) {
     );
 
   if (error) {
-    backToCampaign({ level: "error", message: `저장 실패: ${error.message}` });
+    backToCampaign({ level: "error", message: `저장 실패: ${error.message}`, dept });
   }
 
   revalidatePath("/campaign");
-  backToCampaign({ message: field === "registered" ? "접수 상태가 저장되었습니다." : "참여 상태가 저장되었습니다." });
+  backToCampaign({
+    message: field === "registered" ? "접수 상태가 저장되었습니다." : "참여 상태가 저장되었습니다.",
+    dept,
+  });
 }
 
 export async function addCounterAction(formData: FormData) {

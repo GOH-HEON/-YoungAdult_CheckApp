@@ -92,7 +92,7 @@ function getVisibleChildren(
 
 function getTopMenuClass(active: boolean) {
   return [
-    "inline-flex h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold leading-none transition",
+    "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold leading-none transition",
     active ? "bg-[#2563eb] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
   ].join(" ");
 }
@@ -111,7 +111,7 @@ export function AdminNav({
   const visibleEntries = navEntries.filter((entry) => !entry.requiresWrite || canWrite);
 
   return (
-    <nav aria-label="관리자 메뉴" className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+    <nav aria-label="관리자 메뉴" className="flex min-w-0 flex-1 flex-nowrap items-center gap-0.5">
       {visibleEntries.map((entry) => {
         const children = getVisibleChildren(entry.children, canWrite, canAccessChairboard, canAccessPersonalNotes);
         const active = entry.href

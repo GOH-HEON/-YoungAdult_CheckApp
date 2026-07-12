@@ -1,7 +1,9 @@
-import Link from "next/link";
-
 import { PageTitle } from "@/components/ui/page-title";
-import { addCounterAction, toggleParticipantAction, updateGoalsAction } from "@/app/(admin)/campaign/actions";
+import { addCounterAction, updateGoalsAction } from "@/app/(admin)/campaign/actions";
+import {
+  ParticipationDepartments,
+  type DeptGroup,
+} from "@/app/(admin)/campaign/_components/participation-departments";
 import { canWrite, createPageReadClient, requireSession } from "@/lib/auth/session";
 import {
   achievementRate,
@@ -16,8 +18,7 @@ import { compareDepartmentName } from "@/lib/utils/department-order";
 
 type CampaignPageProps = {
   searchParams: Promise<{
-    q?: string;
-    departmentId?: string;
+    dept?: string;
     level?: "ok" | "error";
     message?: string;
   }>;
@@ -308,27 +309,25 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
     compareDepartmentName(a.name, b.name),
   );
 
-  // 부서별 참여 진행(전체 집계 기준)
-  const deptProgress = sortedDepartments
+  // 부서별 그룹(각 부서 명단 + 진행 집계). 부서 버튼 클릭 시 팝업으로 명단 표시.
+  const deptGroups: DeptGroup[] = sortedDepartments
     .map((dept) => {
-      const inDept = participants.filter((p) => p.department_name === dept.name);
-      return { name: dept.name, total: inDept.length, done: inDept.filter((p) => p.participated).length };
+      const inDept = participants
+        .filter((p) => p.department_name === dept.name)
+        .sort((a, b) => {
+          const gDiff = compareGenderOrder(a.gender, b.gender);
+          if (gDiff !== 0) return gDiff;
+          return a.name.localeCompare(b.name, "ko");
+        });
+      return {
+        name: dept.name,
+        total: inDept.length,
+        registered: inDept.filter((p) => p.registered).length,
+        done: inDept.filter((p) => p.participated).length,
+        members: inDept,
+      };
     })
     .filter((d) => d.total > 0);
-
-  // 표시용 필터
-  const q = params.q?.trim() ?? "";
-  const departmentFilter = params.departmentId?.trim() ?? "";
-  const filtered = participants
-    .filter((p) => (q ? p.name.includes(q) : true))
-    .filter((p) => (departmentFilter ? p.department_name === departmentFilter : true))
-    .sort((a, b) => {
-      const depDiff = compareDepartmentName(a.department_name, b.department_name);
-      if (depDiff !== 0) return depDiff;
-      const gDiff = compareGenderOrder(a.gender, b.gender);
-      if (gDiff !== 0) return gDiff;
-      return a.name.localeCompare(b.name, "ko");
-    });
 
   return (
     <div className="space-y-6">
@@ -396,124 +395,12 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
           <span className="ml-auto rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">전체 {participants.length}</span>
         </div>
 
-        {/* 필터 */}
-        <form className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-6 py-3">
-          <Link
-            href="/campaign"
-            className={[
-              "rounded-full border px-3 py-1.5 text-xs font-semibold",
-              !departmentFilter ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-500",
-            ].join(" ")}
-          >
-            전체
-          </Link>
-          {deptProgress.map((dept) => (
-            <Link
-              key={dept.name}
-              href={`/campaign?departmentId=${encodeURIComponent(dept.name)}`}
-              className={[
-                "rounded-full border px-3 py-1.5 text-xs font-semibold",
-                departmentFilter === dept.name
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-slate-200 bg-white text-slate-500",
-              ].join(" ")}
-            >
-              {dept.name} {dept.total}
-            </Link>
-          ))}
-          <div className="ml-auto flex items-center gap-2">
-            {departmentFilter ? <input type="hidden" name="departmentId" value={departmentFilter} /> : null}
-            <input
-              name="q"
-              defaultValue={q}
-              placeholder="이름 검색…"
-              className="w-44 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-            />
-            <button type="submit" className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white">
-              검색
-            </button>
-          </div>
-        </form>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-slate-500">
-              <tr>
-                <th className="px-6 py-3 font-bold">이름</th>
-                <th className="px-6 py-3 font-bold">성별</th>
-                <th className="px-6 py-3 font-bold">소속부서</th>
-                <th className="px-6 py-3 text-center font-bold">접수</th>
-                <th className="px-6 py-3 text-center font-bold">참여</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {filtered.map((p) => (
-                <tr key={p.member_id}>
-                  <td className="px-6 py-3 font-bold text-slate-900">{p.name}</td>
-                  <td className="px-6 py-3">
-                    <span
-                      className={[
-                        "rounded px-2 py-0.5 text-[11px] font-bold",
-                        p.gender === "형제" ? "bg-blue-50 text-blue-700" : "bg-pink-50 text-pink-700",
-                      ].join(" ")}
-                    >
-                      {p.gender}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{p.department_name ?? "-"}</td>
-                  <td className="px-6 py-3 text-center">
-                    <ToggleCell
-                      campaignId={campaign.id}
-                      memberId={p.member_id}
-                      field="registered"
-                      on={p.registered}
-                      onLabel="접수완료"
-                      offLabel="미접수"
-                      canManage={canManage}
-                    />
-                  </td>
-                  <td className="px-6 py-3 text-center">
-                    <ToggleCell
-                      campaignId={campaign.id}
-                      memberId={p.member_id}
-                      field="participated"
-                      on={p.participated}
-                      onLabel="참여완료"
-                      offLabel="미참여"
-                      canManage={canManage}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filtered.length === 0 ? (
-          <p className="px-6 py-6 text-sm text-slate-500">
-            {participants.length === 0
-              ? "명단이 아직 시드되지 않았습니다. 캠페인에 155명을 시드해 주세요."
-              : "조건에 맞는 인원이 없습니다."}
-          </p>
-        ) : null}
-
-        {/* 부서별 참여 진행 */}
-        {deptProgress.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 border-t border-slate-100 p-6 sm:grid-cols-3 lg:grid-cols-5">
-            {deptProgress.map((dept) => (
-              <div key={dept.name} className="rounded-xl border border-slate-200 p-3">
-                <p className="text-sm font-bold text-slate-800">{dept.name}</p>
-                <p className="mt-0.5 text-xs text-slate-500">참여 {dept.done} / {dept.total}</p>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100">
-                  <div
-                    className="h-full rounded-full bg-emerald-600"
-                    style={{ width: `${progressWidth(dept.done, dept.total)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
+        <ParticipationDepartments
+          campaignId={campaign.id}
+          canManage={canManage}
+          departments={deptGroups}
+          initialOpenDept={params.dept ?? null}
+        />
       </section>
 
       {/* 분야 2·3: 전도 / 권유 카운터 */}
@@ -540,43 +427,5 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
         />
       </div>
     </div>
-  );
-}
-
-function ToggleCell({
-  campaignId,
-  memberId,
-  field,
-  on,
-  onLabel,
-  offLabel,
-  canManage,
-}: {
-  campaignId: string;
-  memberId: string;
-  field: "registered" | "participated";
-  on: boolean;
-  onLabel: string;
-  offLabel: string;
-  canManage: boolean;
-}) {
-  const badgeClass = on
-    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-    : "border-slate-200 bg-slate-50 text-slate-400";
-
-  if (!canManage) {
-    return <span className={["inline-block w-24 rounded-lg border py-1.5 text-xs font-bold", badgeClass].join(" ")}>{on ? onLabel : offLabel}</span>;
-  }
-
-  return (
-    <form action={toggleParticipantAction} className="inline-block">
-      <input type="hidden" name="campaignId" value={campaignId} />
-      <input type="hidden" name="memberId" value={memberId} />
-      <input type="hidden" name="field" value={field} />
-      <input type="hidden" name="next" value={on ? "false" : "true"} />
-      <button type="submit" className={["w-24 rounded-lg border py-1.5 text-xs font-bold transition", badgeClass].join(" ")}>
-        {on ? onLabel : offLabel}
-      </button>
-    </form>
   );
 }
