@@ -381,14 +381,22 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageTitle title="목표대비 달성" description="접수/참여 · 전도 · 권유 목표대비 달성 현황을 한눈에" />
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-          <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500 align-middle" />
-          {campaign.name}
-          {campaign.start_date ? (
-            <span className="ml-2 text-xs font-medium text-slate-400">
-              {campaign.start_date} ~ {campaign.end_date ?? ""}
-            </span>
-          ) : null}
+        <div className="flex items-center gap-2">
+          <a
+            href="/campaign/export"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
+          >
+            📱 HTML 내보내기
+          </a>
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
+            <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500 align-middle" />
+            {campaign.name}
+            {campaign.start_date ? (
+              <span className="ml-2 text-xs font-medium text-slate-400">
+                {campaign.start_date} ~ {campaign.end_date ?? ""}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
