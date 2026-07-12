@@ -1,5 +1,5 @@
 import { PageTitle } from "@/components/ui/page-title";
-import { addCounterAction, updateGoalsAction } from "@/app/(admin)/campaign/actions";
+import { addCounterAction, deleteCounterAction, updateGoalsAction } from "@/app/(admin)/campaign/actions";
 import {
   ParticipationDepartments,
   type DeptGroup,
@@ -123,8 +123,11 @@ function CounterPanel({
   leaderDeptByName: Map<string, string>;
 }) {
   const style = CARD_STYLES[tone];
-  // 카운트된 명단(＋ 추가분). −1 되돌리기(delta<0)는 제외.
-  const entries = logs.filter((log) => log.metric === metric && log.delta > 0);
+  // 카운트된 명단(＋ 추가분). 오래된 순(위=1번)으로 정렬.
+  const entries = logs
+    .filter((log) => log.metric === metric && log.delta > 0)
+    .slice()
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -178,17 +181,6 @@ function CounterPanel({
                   ＋ {metric} 추가
                 </button>
               </form>
-              <form action={addCounterAction}>
-                <input type="hidden" name="campaignId" value={campaignId} />
-                <input type="hidden" name="metric" value={metric} />
-                <input type="hidden" name="delta" value="-1" />
-                <button
-                  type="submit"
-                  className="w-full rounded-lg border border-slate-300 bg-white py-2 text-xs font-bold text-slate-500"
-                >
-                  −1 되돌리기
-                </button>
-              </form>
             </div>
           ) : null}
         </div>
@@ -209,6 +201,7 @@ function CounterPanel({
                     <th className="px-3 py-2 font-bold">부서</th>
                     <th className="px-3 py-2 font-bold">인도자</th>
                     <th className="px-3 py-2 font-bold">{metric}대상자</th>
+                    {canManage ? <th className="w-9 px-2 py-2" /> : null}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -216,10 +209,24 @@ function CounterPanel({
                     const dept = log.leader_name ? leaderDeptByName.get(log.leader_name) ?? null : null;
                     return (
                       <tr key={log.id}>
-                        <td className="px-3 py-2 text-slate-400">{entries.length - i}</td>
+                        <td className="px-3 py-2 text-slate-400">{i + 1}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-slate-500">{dept ?? "-"}</td>
                         <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-700">{log.leader_name || "-"}</td>
                         <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-700">{log.target_name || "-"}</td>
+                        {canManage ? (
+                          <td className="px-2 py-2 text-center">
+                            <form action={deleteCounterAction}>
+                              <input type="hidden" name="logId" value={log.id} />
+                              <button
+                                type="submit"
+                                aria-label="삭제"
+                                className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-400 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                              >
+                                −
+                              </button>
+                            </form>
+                          </td>
+                        ) : null}
                       </tr>
                     );
                   })}
@@ -231,7 +238,7 @@ function CounterPanel({
       </div>
       {canManage ? (
         <p className="border-t border-slate-100 px-6 py-2 text-center text-xs text-slate-400">
-          ＋/− 버튼으로 누적, 모든 변경은 기록에 남습니다
+          ＋ 버튼으로 추가, 명단의 − 버튼으로 삭제합니다
         </p>
       ) : null}
     </section>

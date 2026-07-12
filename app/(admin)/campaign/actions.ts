@@ -132,6 +132,25 @@ export async function addCounterAction(formData: FormData) {
   backToCampaign({ message: `${metric} ${delta > 0 ? "+" : ""}${delta} 반영되었습니다.` });
 }
 
+export async function deleteCounterAction(formData: FormData) {
+  const logId = cleanText(formData.get("logId"));
+  if (!logId) {
+    backToCampaign({ level: "error", message: "삭제할 항목을 찾지 못했습니다." });
+  }
+
+  await requireAdminSession();
+  const admin = createSupabaseAdminClient();
+
+  const { error } = await admin.from("campaign_counter_logs").delete().eq("id", logId);
+
+  if (error) {
+    backToCampaign({ level: "error", message: `삭제 실패: ${error.message}` });
+  }
+
+  revalidatePath("/campaign");
+  backToCampaign({ message: "명단에서 삭제되었습니다." });
+}
+
 export async function updateGoalsAction(formData: FormData) {
   const campaignId = cleanText(formData.get("campaignId"));
   if (!campaignId) {
