@@ -121,7 +121,8 @@ function CounterPanel({
   canManage: boolean;
 }) {
   const style = CARD_STYLES[tone];
-  const recent = logs.filter((log) => log.metric === metric).slice(0, 6);
+  // 카운트된 명단(＋ 추가분). −1 되돌리기(delta<0)는 제외.
+  const entries = logs.filter((log) => log.metric === metric && log.delta > 0);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -191,31 +192,33 @@ function CounterPanel({
         </div>
 
         <div className="flex-1 border-slate-200 sm:border-l sm:pl-6">
-          <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">최근 기록</h4>
-          {recent.length === 0 ? (
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-400">{metric} 명단</h4>
+            <span className="text-xs font-semibold text-slate-400">{entries.length}건</span>
+          </div>
+          {entries.length === 0 ? (
             <p className="text-sm text-slate-400">아직 기록이 없습니다.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
-              {recent.map((log) => (
-                <li key={log.id} className="flex items-center gap-3 py-2 text-sm">
-                  <span className={["w-8 shrink-0 font-extrabold", log.delta > 0 ? "text-emerald-600" : "text-rose-600"].join(" ")}>
-                    {log.delta > 0 ? `+${log.delta}` : log.delta}
-                  </span>
-                  {log.leader_name || log.target_name ? (
-                    <span className="truncate">
-                      <span className="font-semibold text-slate-700">{log.leader_name || "?"}</span>
-                      <span className="text-slate-400"> → </span>
-                      <span className="font-semibold text-slate-700">{log.target_name || "?"}</span>
-                    </span>
-                  ) : (
-                    <span className="truncate font-semibold text-slate-700">{log.actor_name ?? "-"}</span>
-                  )}
-                  <span className="ml-auto shrink-0 text-xs text-slate-400">
-                    {new Date(log.created_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200">
+              <table className="min-w-full text-sm">
+                <thead className="sticky top-0 bg-slate-50 text-left text-slate-500">
+                  <tr>
+                    <th className="w-10 px-3 py-2 font-bold">#</th>
+                    <th className="px-3 py-2 font-bold">인도자</th>
+                    <th className="px-3 py-2 font-bold">{metric}대상자</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {entries.map((log, i) => (
+                    <tr key={log.id}>
+                      <td className="px-3 py-2 text-slate-400">{entries.length - i}</td>
+                      <td className="px-3 py-2 font-semibold text-slate-700">{log.leader_name || "-"}</td>
+                      <td className="px-3 py-2 font-semibold text-slate-700">{log.target_name || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
