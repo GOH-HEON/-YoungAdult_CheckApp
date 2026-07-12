@@ -110,6 +110,7 @@ function CounterPanel({
   goal,
   logs,
   canManage,
+  leaderDeptByName,
 }: {
   campaignId: string;
   metric: CounterMetric;
@@ -119,6 +120,7 @@ function CounterPanel({
   goal: number;
   logs: CounterLogRow[];
   canManage: boolean;
+  leaderDeptByName: Map<string, string>;
 }) {
   const style = CARD_STYLES[tone];
   // 카운트된 명단(＋ 추가분). −1 되돌리기(delta<0)는 제외.
@@ -199,23 +201,28 @@ function CounterPanel({
           {entries.length === 0 ? (
             <p className="text-sm text-slate-400">아직 기록이 없습니다.</p>
           ) : (
-            <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200">
+            <div className="max-h-72 overflow-y-auto overflow-x-auto rounded-lg border border-slate-200">
               <table className="min-w-full text-sm">
-                <thead className="sticky top-0 bg-slate-50 text-left text-slate-500">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-left text-slate-500">
                   <tr>
-                    <th className="w-10 px-3 py-2 font-bold">#</th>
+                    <th className="w-9 px-3 py-2 font-bold">#</th>
+                    <th className="px-3 py-2 font-bold">부서</th>
                     <th className="px-3 py-2 font-bold">인도자</th>
                     <th className="px-3 py-2 font-bold">{metric}대상자</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {entries.map((log, i) => (
-                    <tr key={log.id}>
-                      <td className="px-3 py-2 text-slate-400">{entries.length - i}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-700">{log.leader_name || "-"}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-700">{log.target_name || "-"}</td>
-                    </tr>
-                  ))}
+                  {entries.map((log, i) => {
+                    const dept = log.leader_name ? leaderDeptByName.get(log.leader_name) ?? null : null;
+                    return (
+                      <tr key={log.id}>
+                        <td className="px-3 py-2 text-slate-400">{entries.length - i}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-500">{dept ?? "-"}</td>
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-700">{log.leader_name || "-"}</td>
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-700">{log.target_name || "-"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -290,18 +297,28 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
     );
   }
 
-  const [{ data: participantData }, { data: counterData }, { data: departments }] = await Promise.all([
-    supabase
-      .from("campaign_participants")
-      .select("id, member_id, registered, participated, members(name, gender, department_id, departments(name))")
-      .eq("campaign_id", campaign.id),
-    supabase
-      .from("campaign_counter_logs")
-      .select("id, metric, delta, note, leader_name, target_name, created_at, users(name)")
-      .eq("campaign_id", campaign.id)
-      .order("created_at", { ascending: false }),
-    supabase.from("departments").select("id, name").order("name"),
-  ]);
+  const [{ data: participantData }, { data: counterData }, { data: departments }, { data: memberData }] =
+    await Promise.all([
+      supabase
+        .from("campaign_participants")
+        .select("id, member_id, registered, participated, members(name, gender, department_id, departments(name))")
+        .eq("campaign_id", campaign.id),
+      supabase
+        .from("campaign_counter_logs")
+        .select("id, metric, delta, note, leader_name, target_name, created_at, users(name)")
+        .eq("campaign_id", campaign.id)
+        .order("created_at", { ascending: false }),
+      supabase.from("departments").select("id, name").order("name"),
+      supabase.from("members").select("name, departments(name)").eq("is_active", true),
+    ]);
+
+  // 인도자 이름 → 부서 자동 연계용 맵(전체 활성 멤버 기준)
+  const leaderDeptByName = new Map<string, string>();
+  for (const m of (memberData as { name: string | null; departments: { name: string } | null }[] | null) ?? []) {
+    if (m.name && m.departments?.name) {
+      leaderDeptByName.set(m.name, m.departments.name);
+    }
+  }
 
   const participants: ParticipantRow[] = ((participantData as RawParticipant[] | null) ?? []).map((row) => ({
     id: row.id,
@@ -438,6 +455,7 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
           goal={campaign.goal_evangelism}
           logs={logs}
           canManage={canManage}
+          leaderDeptByName={leaderDeptByName}
         />
         <CounterPanel
           campaignId={campaign.id}
@@ -448,6 +466,7 @@ export default async function CampaignPage({ searchParams }: CampaignPageProps) 
           goal={campaign.goal_invitation}
           logs={logs}
           canManage={canManage}
+          leaderDeptByName={leaderDeptByName}
         />
       </div>
     </div>
