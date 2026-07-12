@@ -472,3 +472,73 @@ create policy login_history_personal_read
 on public.login_history
 for select
 using (public.is_personal_notes_user());
+
+-- ── 목표대비 달성(캠페인) ───────────────────────────────────────────────
+create table if not exists public.campaigns (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  start_date date,
+  end_date date,
+  goal_registration integer not null default 0 check (goal_registration >= 0),
+  goal_participation integer not null default 0 check (goal_participation >= 0),
+  goal_evangelism   integer not null default 0 check (goal_evangelism >= 0),
+  goal_invitation   integer not null default 0 check (goal_invitation >= 0),
+  is_active boolean not null default true,
+  created_by uuid references public.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.campaign_participants (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references public.campaigns(id) on delete cascade,
+  member_id uuid not null references public.members(id),
+  registered boolean not null default false,
+  participated boolean not null default false,
+  registered_at timestamptz,
+  participated_at timestamptz,
+  note text,
+  updated_by uuid references public.users(id),
+  updated_at timestamptz not null default now(),
+  unique (campaign_id, member_id),
+  constraint participated_requires_registered check (not participated or registered)
+);
+create index if not exists idx_camp_part_campaign on public.campaign_participants (campaign_id);
+
+create table if not exists public.campaign_counter_logs (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references public.campaigns(id) on delete cascade,
+  metric text not null check (metric in ('전도','권유')),
+  delta integer not null check (delta <> 0),
+  note text,
+  created_by uuid references public.users(id),
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_camp_counter_lookup on public.campaign_counter_logs (campaign_id, metric);
+
+drop trigger if exists trg_campaigns_updated on public.campaigns;
+create trigger trg_campaigns_updated before update on public.campaigns
+  for each row execute function public.set_updated_at();
+drop trigger if exists trg_camp_part_updated on public.campaign_participants;
+create trigger trg_camp_part_updated before update on public.campaign_participants
+  for each row execute function public.set_updated_at();
+
+alter table public.campaigns             enable row level security;
+alter table public.campaign_participants enable row level security;
+alter table public.campaign_counter_logs enable row level security;
+
+drop policy if exists campaigns_read on public.campaigns;
+create policy campaigns_read on public.campaigns for select using (public.is_read_user());
+drop policy if exists campaigns_write on public.campaigns;
+create policy campaigns_write on public.campaigns for all using (public.is_admin_user()) with check (public.is_admin_user());
+
+drop policy if exists camp_part_read on public.campaign_participants;
+create policy camp_part_read on public.campaign_participants for select using (public.is_read_user());
+drop policy if exists camp_part_write on public.campaign_participants;
+create policy camp_part_write on public.campaign_participants for all using (public.is_admin_user()) with check (public.is_admin_user());
+
+drop policy if exists camp_counter_read on public.campaign_counter_logs;
+create policy camp_counter_read on public.campaign_counter_logs for select using (public.is_read_user());
+drop policy if exists camp_counter_write on public.campaign_counter_logs;
+create policy camp_counter_write on public.campaign_counter_logs for all using (public.is_admin_user()) with check (public.is_admin_user());

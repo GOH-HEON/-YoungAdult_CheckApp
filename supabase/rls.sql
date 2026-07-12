@@ -257,3 +257,23 @@ create policy login_history_personal_read
 on public.login_history
 for select
 using (public.is_personal_notes_user());
+
+-- ── 목표대비 달성(캠페인) RLS ──────────────────────────────────────────
+alter table public.campaigns             enable row level security;
+alter table public.campaign_participants enable row level security;
+alter table public.campaign_counter_logs enable row level security;
+
+drop policy if exists campaigns_read on public.campaigns;
+create policy campaigns_read on public.campaigns for select using (public.is_read_user());
+drop policy if exists campaigns_write on public.campaigns;
+create policy campaigns_write on public.campaigns for all using (public.is_admin_user()) with check (public.is_admin_user());
+
+drop policy if exists camp_part_read on public.campaign_participants;
+create policy camp_part_read on public.campaign_participants for select using (public.is_read_user());
+drop policy if exists camp_part_write on public.campaign_participants;
+create policy camp_part_write on public.campaign_participants for all using (public.is_admin_user()) with check (public.is_admin_user());
+
+drop policy if exists camp_counter_read on public.campaign_counter_logs;
+create policy camp_counter_read on public.campaign_counter_logs for select using (public.is_read_user());
+drop policy if exists camp_counter_write on public.campaign_counter_logs;
+create policy camp_counter_write on public.campaign_counter_logs for all using (public.is_admin_user()) with check (public.is_admin_user());

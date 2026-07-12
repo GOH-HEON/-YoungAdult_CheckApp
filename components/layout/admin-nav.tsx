@@ -54,6 +54,7 @@ const navEntries: NavEntry[] = [
       { href: "/login-history", label: "접속 기록", icon: "history", requiresPersonalNotes: true },
     ],
   },
+  { href: "/campaign", label: "목표대비 달성", icon: "reports" },
   { href: "/reports", label: "리포트", icon: "reports" },
   { href: "/settings", label: "설정", icon: "settings", requiresWrite: true },
 ];

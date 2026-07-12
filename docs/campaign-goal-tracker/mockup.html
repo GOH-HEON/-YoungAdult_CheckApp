@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --bg:#f8fafc; --fg:#0f172a; --surface:#fff; --muted:#64748b;
+    --border:#e2e8f0; --primary:#2563eb; --primary-strong:#1d4ed8;
+    --emerald:#059669; --emerald-bg:#ecfdf5; --amber:#d97706; --violet:#7c3aed;
+  }
+  body{
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",-apple-system,sans-serif;
+    background:var(--bg); color:var(--fg); width:1280px; padding:28px 32px 40px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page-head{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:6px;}
+  .page-title{font-size:26px; font-weight:800; letter-spacing:-0.02em;}
+  .page-sub{color:var(--muted); font-size:14px; margin-top:6px;}
+  .campaign-pick{
+    display:flex; align-items:center; gap:8px; background:var(--surface);
+    border:1px solid var(--border); border-radius:10px; padding:9px 14px; font-size:14px; font-weight:600;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+  }
+  .campaign-pick .dot{width:8px;height:8px;border-radius:50%;background:var(--emerald);}
+  .campaign-pick .chev{color:var(--muted); font-size:12px;}
+  .campaign-pick .period{color:var(--muted); font-weight:500; font-size:12px; margin-left:4px;}
+
+  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:22px 0 26px;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px 18px 16px; box-shadow:0 1px 2px rgba(15,23,42,.04);}
+  .card .label{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--muted);}
+  .card .badge{margin-left:auto; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px;}
+  .b-list{background:#eff6ff; color:var(--primary-strong);}
+  .b-count{background:#f5f3ff; color:var(--violet);}
+  .card .value{font-size:30px; font-weight:800; margin-top:12px; letter-spacing:-0.02em;}
+  .card .value small{font-size:15px; font-weight:600; color:var(--muted);}
+  .card .pct{font-size:13px; font-weight:700; margin-top:2px;}
+  .card .bar{height:8px; border-radius:999px; background:#eef2f7; margin-top:12px; overflow:hidden;}
+  .card .bar > i{display:block; height:100%; border-radius:999px;}
+  .fill-blue{background:linear-gradient(90deg,#3b82f6,#2563eb);}
+  .fill-emerald{background:linear-gradient(90deg,#10b981,#059669);}
+  .fill-violet{background:linear-gradient(90deg,#8b5cf6,#7c3aed);}
+  .fill-amber{background:linear-gradient(90deg,#f59e0b,#d97706);}
+  .t-emerald{color:var(--emerald);} .t-blue{color:var(--primary-strong);} .t-violet{color:var(--violet);} .t-amber{color:var(--amber);}
+
+  .section{background:var(--surface); border:1px solid var(--border); border-radius:16px; margin-bottom:20px; box-shadow:0 1px 2px rgba(15,23,42,.04); overflow:hidden;}
+  .sec-head{display:flex; align-items:center; gap:12px; padding:18px 22px; border-bottom:1px solid var(--border);}
+  .sec-idx{width:26px; height:26px; border-radius:8px; background:var(--primary); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center;}
+  .sec-title{font-size:17px; font-weight:800;}
+  .sec-desc{font-size:12.5px; color:var(--muted); margin-left:2px;}
+  .sec-right{margin-left:auto; display:flex; align-items:center; gap:10px;}
+
+  .toolbar{display:flex; align-items:center; gap:10px; padding:14px 22px; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .chip{font-size:12.5px; font-weight:600; padding:6px 12px; border-radius:999px; border:1px solid var(--border); color:var(--muted); background:#fff;}
+  .chip.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+  .search{margin-left:auto; display:flex; align-items:center; gap:7px; border:1px solid var(--border); border-radius:9px; padding:7px 12px; font-size:13px; color:var(--muted); min-width:200px;}
+
+  table{width:100%; border-collapse:collapse;}
+  thead th{font-size:12px; font-weight:700; color:var(--muted); text-align:left; padding:11px 22px; background:#f8fafc; border-bottom:1px solid var(--border);}
+  thead th.c{text-align:center;} tbody td.c{text-align:center;}
+  tbody td{padding:12px 22px; font-size:13.5px; border-bottom:1px solid #f1f5f9;}
+  tbody tr:last-child td{border-bottom:none;}
+  .name{font-weight:700;}
+  .tag{font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;}
+  .tag-m{background:#eff6ff; color:#1d4ed8;} .tag-f{background:#fdf2f8; color:#be185d;}
+  .dept{color:var(--muted); font-size:12.5px;}
+  .toggle{display:inline-flex; align-items:center; justify-content:center; width:80px; padding:6px 0; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; border:1px solid transparent;}
+  .on{background:var(--emerald-bg); color:var(--emerald); border-color:#a7f3d0;}
+  .off{background:#f8fafc; color:#94a3b8; border-color:var(--border);}
+
+  .dept-progress{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; padding:16px 22px 20px;}
+  .dp{border:1px solid var(--border); border-radius:11px; padding:12px 14px;}
+  .dp .dn{font-size:13px; font-weight:700;}
+  .dp .dv{font-size:12px; color:var(--muted); margin-top:2px;}
+  .dp .bar{height:6px; border-radius:999px; background:#eef2f7; margin-top:9px; overflow:hidden;}
+  .dp .bar>i{display:block;height:100%;}
+
+  .counter-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  .counter-body{display:flex; gap:26px; padding:22px;}
+  .counter-main{flex:0 0 auto; text-align:center; min-width:230px;}
+  .counter-num{font-size:52px; font-weight:800; letter-spacing:-0.03em; line-height:1;}
+  .counter-goal{font-size:15px; color:var(--muted); font-weight:600; margin-top:6px;}
+  .counter-bar{height:10px; border-radius:999px; background:#eef2f7; margin:16px 0 8px; overflow:hidden;}
+  .counter-bar>i{display:block; height:100%; border-radius:999px;}
+  .counter-pct{font-size:13px; font-weight:700;}
+  .btns{display:flex; gap:10px; justify-content:center; margin-top:16px;}
+  .btn{border-radius:10px; font-size:15px; font-weight:800; padding:11px 0; cursor:pointer; border:1px solid var(--border);}
+  .btn-minus{width:56px; background:#fff; color:var(--muted);}
+  .btn-plus{flex:1; min-width:150px; background:var(--primary); color:#fff; border-color:var(--primary);}
+  .log{flex:1; border-left:1px solid var(--border); padding-left:24px;}
+  .log h4{font-size:12.5px; font-weight:700; color:var(--muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:.03em;}
+  .log-item{display:flex; align-items:center; gap:10px; font-size:13px; padding:8px 0; border-bottom:1px solid #f1f5f9;}
+  .log-item:last-child{border-bottom:none;}
+  .log-delta{font-weight:800; font-size:13px; width:32px;}
+  .log-plus{color:var(--emerald);} .log-minus{color:#dc2626;}
+  .log-who{font-weight:600;}
+  .log-time{margin-left:auto; color:#94a3b8; font-size:11.5px;}
+  .footnote{color:#94a3b8; font-size:11.5px; margin-top:6px; text-align:center;}
+  .wire-note{position:absolute;}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <div>
+      <div class="page-title">목표대비 달성</div>
+      <div class="page-sub">청년회 전도캠페인 · 접수/참여 · 전도 · 권유 현황을 한눈에</div>
+    </div>
+    <div class="campaign-pick">
+      <span class="dot"></span> 2026 하계 전도캠페인
+      <span class="period">2026.07.01 – 08.31</span>
+      <span class="chev">▾</span>
+    </div>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="cards">
+    <div class="card">
+      <div class="label">접수 <span class="badge b-list">목록</span></div>
+      <div class="value">112<small> / 155명</small></div>
+      <div class="pct t-blue">72.3% 달성</div>
+      <div class="bar"><i class="fill-blue" style="width:72%"></i></div>
+    </div>
+    <div class="card">
+      <div class="label">참여 <span class="badge b-list">목록</span></div>
+      <div class="value">98<small> / 155명</small></div>
+      <div class="pct t-emerald">63.2% 달성</div>
+      <div class="bar"><i class="fill-emerald" style="width:63%"></i></div>
+    </div>
+    <div class="card">
+      <div class="label">전도 <span class="badge b-count">카운터</span></div>
+      <div class="value">29<small> / 45명</small></div>
+      <div class="pct t-violet">64.4% 달성</div>
+      <div class="bar"><i class="fill-violet" style="width:64%"></i></div>
+    </div>
+    <div class="card">
+      <div class="label">권유 <span class="badge b-count">카운터</span></div>
+      <div class="value">107<small> / 150명</small></div>
+      <div class="pct t-amber">71.3% 달성</div>
+      <div class="bar"><i class="fill-amber" style="width:71%"></i></div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: 접수/참여 목록 -->
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-idx">1</div>
+      <div>
+        <div class="sec-title">접수 / 참여 <span class="sec-desc">— 155명 명단 기반, 개인별 접수·참여 체크</span></div>
+      </div>
+      <div class="sec-right"><span class="chip active">전체 155</span></div>
+    </div>
+    <div class="toolbar">
+      <span class="chip active">전체</span>
+      <span class="chip">보라부 39</span>
+      <span class="chip">뿌리부 39</span>
+      <span class="chip">소명부 35</span>
+      <span class="chip">은혜부 35</span>
+      <span class="chip">회장단 7</span>
+      <span class="search">🔍 이름 검색…</span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>이름</th><th>성별</th><th>소속부서</th><th class="c">접수</th><th class="c">참여</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="name">김○수</td><td><span class="tag tag-m">형제</span></td><td class="dept">보라부</td><td class="c"><span class="toggle on">접수완료</span></td><td class="c"><span class="toggle on">참여완료</span></td></tr>
+        <tr><td class="name">이○민</td><td><span class="tag tag-f">자매</span></td><td class="dept">보라부</td><td class="c"><span class="toggle on">접수완료</span></td><td class="c"><span class="toggle off">미참여</span></td></tr>
+        <tr><td class="name">박○준</td><td><span class="tag tag-m">형제</span></td><td class="dept">뿌리부</td><td class="c"><span class="toggle on">접수완료</span></td><td class="c"><span class="toggle on">참여완료</span></td></tr>
+        <tr><td class="name">최○영</td><td><span class="tag tag-f">자매</span></td><td class="dept">뿌리부</td><td class="c"><span class="toggle off">미접수</span></td><td class="c"><span class="toggle off">미참여</span></td></tr>
+        <tr><td class="name">정○호</td><td><span class="tag tag-m">형제</span></td><td class="dept">소명부</td><td class="c"><span class="toggle on">접수완료</span></td><td class="c"><span class="toggle on">참여완료</span></td></tr>
+        <tr><td class="name">한○지</td><td><span class="tag tag-f">자매</span></td><td class="dept">은혜부</td><td class="c"><span class="toggle on">접수완료</span></td><td class="c"><span class="toggle on">참여완료</span></td></tr>
+        <tr><td class="name">윤○석</td><td><span class="tag tag-m">형제</span></td><td class="dept">회장단</td><td class="c"><span class="toggle on">접수완료</span></td><td class="c"><span class="toggle on">참여완료</span></td></tr>
+      </tbody>
+    </table>
+    <div class="dept-progress">
+      <div class="dp"><div class="dn">보라부</div><div class="dv">참여 26 / 39</div><div class="bar"><i class="fill-emerald" style="width:67%"></i></div></div>
+      <div class="dp"><div class="dn">뿌리부</div><div class="dv">참여 24 / 39</div><div class="bar"><i class="fill-emerald" style="width:62%"></i></div></div>
+      <div class="dp"><div class="dn">소명부</div><div class="dv">참여 22 / 35</div><div class="bar"><i class="fill-emerald" style="width:63%"></i></div></div>
+      <div class="dp"><div class="dn">은혜부</div><div class="dv">참여 20 / 35</div><div class="bar"><i class="fill-emerald" style="width:57%"></i></div></div>
+      <div class="dp"><div class="dn">회장단</div><div class="dv">참여 6 / 7</div><div class="bar"><i class="fill-emerald" style="width:86%"></i></div></div>
+    </div>
+  </div>
+
+  <!-- SECTIONS 2 & 3: COUNTERS -->
+  <div class="counter-grid">
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-idx" style="background:var(--violet)">2</div>
+        <div><div class="sec-title">전도 <span class="sec-desc">— 전체 단일 카운터</span></div></div>
+      </div>
+      <div class="counter-body">
+        <div class="counter-main">
+          <div class="counter-num t-violet">29</div>
+          <div class="counter-goal">목표 45명</div>
+          <div class="counter-bar"><i class="fill-violet" style="width:64%"></i></div>
+          <div class="counter-pct t-violet">64.4% 달성</div>
+          <div class="btns">
+            <div class="btn btn-minus">−1</div>
+            <div class="btn btn-plus" style="background:var(--violet);border-color:var(--violet)">＋ 전도 추가</div>
+          </div>
+        </div>
+        <div class="log">
+          <h4>최근 기록</h4>
+          <div class="log-item"><span class="log-delta log-plus">+1</span><span class="log-who">이집사</span><span class="log-time">방금 전</span></div>
+          <div class="log-item"><span class="log-delta log-plus">+2</span><span class="log-who">박회장</span><span class="log-time">10분 전</span></div>
+          <div class="log-item"><span class="log-delta log-minus">−1</span><span class="log-who">김간사</span><span class="log-time">1시간 전</span></div>
+          <div class="log-item"><span class="log-delta log-plus">+1</span><span class="log-who">정부장</span><span class="log-time">오늘 09:20</span></div>
+        </div>
+      </div>
+      <div class="footnote">＋/− 버튼으로 누적, 모든 변경은 기록에 남습니다</div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-idx" style="background:var(--amber)">3</div>
+        <div><div class="sec-title">권유 <span class="sec-desc">— 전체 단일 카운터</span></div></div>
+      </div>
+      <div class="counter-body">
+        <div class="counter-main">
+          <div class="counter-num t-amber">107</div>
+          <div class="counter-goal">목표 150명</div>
+          <div class="counter-bar"><i class="fill-amber" style="width:71%"></i></div>
+          <div class="counter-pct t-amber">71.3% 달성</div>
+          <div class="btns">
+            <div class="btn btn-minus">−1</div>
+            <div class="btn btn-plus" style="background:var(--amber);border-color:var(--amber)">＋ 권유 추가</div>
+          </div>
+        </div>
+        <div class="log">
+          <h4>최근 기록</h4>
+          <div class="log-item"><span class="log-delta log-plus">+3</span><span class="log-who">한간사</span><span class="log-time">5분 전</span></div>
+          <div class="log-item"><span class="log-delta log-plus">+1</span><span class="log-who">최부장</span><span class="log-time">32분 전</span></div>
+          <div class="log-item"><span class="log-delta log-plus">+5</span><span class="log-who">윤회장</span><span class="log-time">2시간 전</span></div>
+          <div class="log-item"><span class="log-delta log-plus">+2</span><span class="log-who">이집사</span><span class="log-time">오늘 08:50</span></div>
+        </div>
+      </div>
+      <div class="footnote">＋/− 버튼으로 누적, 모든 변경은 기록에 남습니다</div>
+    </div>
+  </div>
+</body>
+</html>
