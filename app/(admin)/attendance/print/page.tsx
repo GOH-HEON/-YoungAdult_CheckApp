@@ -53,6 +53,38 @@ type DepartmentSheetGroup = {
   sisters: SheetMember[];
 };
 
+// 형제는 부장 → 차장, 자매는 자매조장 → 부조장 순서로 인쇄한다.
+const PRINT_LEADER_ORDER: Record<string, { brothers: string[]; sisters: string[] }> = {
+  소명부: {
+    brothers: ["배훤", "이준희"],
+    sisters: ["소지원", "이지원"],
+  },
+  보라부: {
+    brothers: ["전인수", "김재은"],
+    sisters: ["문서윤", "송예림"],
+  },
+  뿌리부: {
+    brothers: ["신대한", "전보광"],
+    sisters: ["안미정", "김설아"],
+  },
+  은혜부: {
+    brothers: ["진원태", "김준수"],
+    sisters: ["송예솜", "한수연"],
+  },
+};
+
+function sortSheetMembers(members: SheetMember[], leaderNames: string[] = []) {
+  const leaderRanks = new Map(leaderNames.map((name, index) => [name, index]));
+
+  members.sort((a, b) => {
+    const rankDiff =
+      (leaderRanks.get(a.name) ?? leaderNames.length) -
+      (leaderRanks.get(b.name) ?? leaderNames.length);
+
+    return rankDiff || a.name.localeCompare(b.name, "ko-KR");
+  });
+}
+
 function toPrintableValue(value: string | null | undefined) {
   return value?.trim() ?? "";
 }
@@ -147,8 +179,9 @@ export default async function AttendancePrintPage({ searchParams }: AttendancePr
   });
 
   groupsMap.forEach((group) => {
-    group.brothers.sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
-    group.sisters.sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
+    const leaderOrder = PRINT_LEADER_ORDER[group.departmentName];
+    sortSheetMembers(group.brothers, leaderOrder?.brothers);
+    sortSheetMembers(group.sisters, leaderOrder?.sisters);
   });
 
   const departmentGroups = Array.from(groupsMap.values()).sort((a, b) =>
