@@ -25,13 +25,14 @@ function getRequestMetadata(requestHeaders: Headers) {
 export async function signInAction(formData: FormData) {
   const email = cleanText(formData.get("email"));
   const password = cleanText(formData.get("password"));
+  const rememberLogin = formData.get("rememberLogin") === "on";
   const nextPath = sanitizeRedirectPath(cleanText(formData.get("next")), "/dashboard");
 
   if (!email || !password) {
     redirectLoginWithError("이메일과 비밀번호를 입력해 주세요.", nextPath);
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient({ rememberLogin });
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,

@@ -61,6 +61,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
             />
           </div>
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                name="rememberLogin"
+                type="checkbox"
+                aria-describedby="remember-login-help"
+                className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+              />
+              이 기기에서 로그인 상태 유지
+            </label>
+            <p id="remember-login-help" className="text-xs leading-relaxed text-slate-500">
+              개인 기기에서만 선택하세요. 마지막 로그인 상태 갱신 후 30일 동안 유지합니다.
+            </p>
+          </div>
           <button
             type="submit"
             disabled={!hasEnv}

@@ -16,26 +16,34 @@ function isProtectedPath(pathname: string) {
   return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+function redirectWithSession(url: URL, sessionResponse: NextResponse) {
+  const response = NextResponse.redirect(url);
+  sessionResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+  for (const name of ["Cache-Control", "Expires", "Pragma"]) {
+    const value = sessionResponse.headers.get(name);
+    if (value) {
+      response.headers.set(name, value);
+    }
+  }
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   if (!hasSupabaseEnv()) {
     return NextResponse.next({ request });
   }
 
   const pathname = request.nextUrl.pathname;
-  const { supabase, response } = createSupabaseMiddlewareClient(request);
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, response } = await createSupabaseMiddlewareClient(request);
 
   if (isProtectedPath(pathname) && !user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    return redirectWithSession(loginUrl, response);
   }
 
   if (pathname === "/login" && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return redirectWithSession(new URL("/dashboard", request.url), response);
   }
 
   return response;
